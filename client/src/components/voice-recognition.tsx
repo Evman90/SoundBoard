@@ -13,7 +13,8 @@ export default function VoiceRecognition() {
     stopListening,
     clearTranscript,
     isSupported,
-    audioLevel
+    audioLevel,
+    errorMessage
   } = useVoiceRecognition();
 
   const [status, setStatus] = useState("Ready to Listen");
@@ -76,10 +77,22 @@ export default function VoiceRecognition() {
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
             {isListening ? "Click to stop listening" : "Click to start listening"}
           </p>
+          {!isListening && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+              Note: Microphone access may be restricted in embedded previews
+            </p>
+          )}
         </div>
 
         {/* Audio Level Visualization */}
         <AudioVisualizer audioLevel={audioLevel} isListening={isListening} />
+
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 mb-4">
+            <p className="text-red-700 dark:text-red-300 text-sm">{errorMessage}</p>
+          </div>
+        )}
 
         {/* Live Transcript */}
         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">

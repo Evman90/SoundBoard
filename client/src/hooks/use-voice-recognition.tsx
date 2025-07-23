@@ -31,6 +31,7 @@ export function useVoiceRecognition() {
   const [transcript, setTranscript] = useState("");
   const [audioLevel, setAudioLevel] = useState(-42);
   const [isSupported, setIsSupported] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -48,15 +49,35 @@ export function useVoiceRecognition() {
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setIsSupported(!!SpeechRecognition);
+    const supported = !!SpeechRecognition;
+    setIsSupported(supported);
+    
+    if (!supported) {
+      setErrorMessage("Speech recognition not supported in this browser. Use Chrome or Edge for best results.");
+    } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMessage("Microphone access not available. Please check browser permissions.");
+    } else {
+      setErrorMessage("");
+    }
+    
+    console.log("Voice recognition support:", supported);
+    console.log("User agent:", navigator.userAgent);
   }, []);
 
   const initializeAudioAnalyzer = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("Requesting microphone access...");
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
       streamRef.current = stream;
+      console.log("Microphone access granted");
 
-      const audioContext = new AudioContext();
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
 
       const analyser = audioContext.createAnalyser();
@@ -82,8 +103,17 @@ export function useVoiceRecognition() {
       };
 
       updateAudioLevel();
-    } catch (error) {
+      setErrorMessage("");
+    } catch (error: any) {
       console.error("Error accessing microphone:", error);
+      if (error.name === 'NotAllowedError') {
+        setErrorMessage("Microphone permission denied. Please allow microphone access and try again.");
+      } else if (error.name === 'NotFoundError') {
+        setErrorMessage("No microphone found. Please connect a microphone and try again.");
+      } else {
+        setErrorMessage(`Microphone error: ${error.message}`);
+      }
+      throw error;
     }
   }, [isListening]);
 
@@ -116,9 +146,13 @@ export function useVoiceRecognition() {
   }, [triggerWords, soundClips, playSound]);
 
   const startListening = useCallback(async (): Promise<boolean> => {
-    if (!isSupported) return false;
+    if (!isSupported) {
+      setErrorMessage("Speech recognition not supported in this browser");
+      return false;
+    }
 
     try {
+      console.log("Starting voice recognition...");
       await initializeAudioAnalyzer();
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -127,6 +161,11 @@ export function useVoiceRecognition() {
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        console.log("Speech recognition started");
+        setErrorMessage("");
+      };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         let finalTranscript = "";
@@ -143,6 +182,7 @@ export function useVoiceRecognition() {
 
         const fullTranscript = finalTranscript || interimTranscript;
         setTranscript(fullTranscript);
+        console.log("Transcript:", fullTranscript);
 
         if (finalTranscript) {
           checkForTriggerWords(finalTranscript);
@@ -150,25 +190,48 @@ export function useVoiceRecognition() {
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        if (event.error === "not-allowed") {
-          setIsListening(false);
+        console.error("Speech recognition error:", event.error, event);
+        switch (event.error) {
+          case "not-allowed":
+            setErrorMessage("Microphone permission denied. Please allow microphone access.");
+            break;
+          case "no-speech":
+            setErrorMessage("No speech detected. Try speaking louder.");
+            break;
+          case "audio-capture":
+            setErrorMessage("Audio capture failed. Check your microphone.");
+            break;
+          case "network":
+            setErrorMessage("Network error. Check your internet connection.");
+            break;
+          default:
+            setErrorMessage(`Speech recognition error: ${event.error}`);
         }
+        setIsListening(false);
       };
 
       recognition.onend = () => {
+        console.log("Speech recognition ended");
         if (isListening) {
-          // Restart recognition if it stops unexpectedly
-          recognition.start();
+          console.log("Restarting speech recognition...");
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error("Failed to restart recognition:", e);
+            setIsListening(false);
+          }
         }
       };
 
       recognition.start();
       recognitionRef.current = recognition;
       setIsListening(true);
+      console.log("Voice recognition initialized successfully");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start voice recognition:", error);
+      setErrorMessage(`Failed to start: ${error.message}`);
+      setIsListening(false);
       return false;
     }
   }, [isSupported, initializeAudioAnalyzer, checkForTriggerWords, isListening]);
@@ -209,6 +272,7 @@ export function useVoiceRecognition() {
     transcript,
     audioLevel,
     isSupported,
+    errorMessage,
     startListening,
     stopListening,
     clearTranscript,
