@@ -1,0 +1,108 @@
+# CallSound Pro - Voice-Triggered Sound Clips Application
+
+## Overview
+
+CallSound Pro is a full-stack web application that enables users to upload sound clips and trigger them through voice recognition. The application listens for specific trigger words/phrases and plays corresponding audio files, making it ideal for live streaming, gaming, or entertainment purposes.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **UI Library**: Radix UI components with shadcn/ui styling system
+- **Styling**: Tailwind CSS with CSS variables for theming
+- **Routing**: Wouter for client-side routing
+- **State Management**: TanStack Query (React Query) for server state
+- **Build Tool**: Vite with React plugin
+- **Audio Processing**: Web Audio API for voice recognition and audio playback
+
+### Backend Architecture
+- **Runtime**: Node.js with Express.js framework
+- **Language**: TypeScript with ES modules
+- **API Pattern**: RESTful API design
+- **File Handling**: Multer for multipart/form-data file uploads
+- **Development**: Hot module replacement via Vite integration
+
+### Database & ORM
+- **Database**: PostgreSQL (configured via Drizzle)
+- **ORM**: Drizzle ORM with PostgreSQL dialect
+- **Connection**: Neon Database serverless driver
+- **Schema**: Shared schema definitions between client and server
+- **Migrations**: Drizzle Kit for database migrations
+
+## Key Components
+
+### Audio Management System
+- **Sound Clips**: Upload, store, and manage audio files (MP3, WAV, OGG)
+- **File Storage**: Local filesystem storage with configurable upload directory
+- **Audio Player**: Custom hook for audio playback with volume control
+- **Supported Formats**: MP3, WAV, OGG with 10MB file size limit
+
+### Voice Recognition Engine
+- **Browser API**: Web Speech Recognition API (Chrome/Edge)
+- **Real-time Processing**: Continuous listening with interim results
+- **Audio Visualization**: Real-time audio level monitoring and visual feedback
+- **Trigger Matching**: Case-sensitive/insensitive phrase matching with cooldown system
+
+### Trigger Word System
+- **Dynamic Configuration**: Create, edit, and delete trigger words
+- **Sound Association**: Link trigger phrases to specific sound clips
+- **Flexible Matching**: Optional case-sensitive matching
+- **Enable/Disable**: Toggle individual triggers without deletion
+
+### Storage Abstraction
+- **Interface-based Design**: IStorage interface for multiple storage backends
+- **In-Memory Implementation**: MemStorage for development/testing
+- **Database Ready**: Structured for easy database integration
+- **CRUD Operations**: Full create, read, update, delete functionality
+
+## Data Flow
+
+1. **Audio Upload**: Client uploads audio files → Multer processes → Server validates → File stored locally → Database record created
+2. **Voice Recognition**: Browser captures audio → Speech API processes → Text transcript generated → Trigger matching performed → Associated sound played
+3. **Trigger Management**: User creates trigger words → Associated with sound clips → Stored in database → Used for real-time matching
+4. **Audio Playback**: Trigger detected → Sound clip retrieved → Audio element created → Played with volume control
+
+## External Dependencies
+
+### Core Dependencies
+- **@neondatabase/serverless**: PostgreSQL serverless connection
+- **drizzle-orm**: Database ORM and query builder
+- **@tanstack/react-query**: Server state management
+- **@radix-ui/**: Comprehensive UI component library
+- **multer**: File upload handling middleware
+- **wouter**: Lightweight React router
+
+### Development Tools
+- **Vite**: Fast build tool and development server
+- **TypeScript**: Type safety and development experience
+- **Tailwind CSS**: Utility-first CSS framework
+- **ESBuild**: Fast JavaScript bundler for production
+
+### Browser APIs
+- **Web Speech Recognition**: Voice input processing
+- **Web Audio API**: Audio level monitoring and playback
+- **File API**: Client-side file handling
+
+## Deployment Strategy
+
+### Build Process
+- **Client Build**: Vite builds React app to `dist/public`
+- **Server Build**: ESBuild bundles server code to `dist/index.js`
+- **Production Mode**: Serves static files and API from single Express server
+- **Development Mode**: Vite dev server with HMR integration
+
+### Environment Configuration
+- **Database URL**: Required environment variable for PostgreSQL connection
+- **File Storage**: Configurable upload directory (defaults to `./uploads`)
+- **Development Features**: Replit-specific debugging and development tools
+
+### Database Management
+- **Schema Migrations**: Drizzle Kit for database schema management
+- **Push Strategy**: Direct schema push for development
+- **Production Ready**: Migration-based deployment for production environments
+
+The application follows a modern full-stack architecture with clear separation between client and server, comprehensive error handling, and scalable storage solutions. The modular design allows for easy extension and maintenance while providing a robust foundation for voice-triggered audio applications.

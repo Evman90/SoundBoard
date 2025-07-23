@@ -1,0 +1,90 @@
+import { soundClips, triggerWords, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord } from "@shared/schema";
+
+export interface IStorage {
+  // Sound clips
+  getSoundClips(): Promise<SoundClip[]>;
+  getSoundClip(id: number): Promise<SoundClip | undefined>;
+  createSoundClip(soundClip: InsertSoundClip): Promise<SoundClip>;
+  deleteSoundClip(id: number): Promise<void>;
+  
+  // Trigger words
+  getTriggerWords(): Promise<TriggerWord[]>;
+  getTriggerWord(id: number): Promise<TriggerWord | undefined>;
+  createTriggerWord(triggerWord: InsertTriggerWord): Promise<TriggerWord>;
+  updateTriggerWord(id: number, triggerWord: Partial<InsertTriggerWord>): Promise<TriggerWord | undefined>;
+  deleteTriggerWord(id: number): Promise<void>;
+}
+
+export class MemStorage implements IStorage {
+  private soundClips: Map<number, SoundClip>;
+  private triggerWords: Map<number, TriggerWord>;
+  private currentSoundClipId: number;
+  private currentTriggerWordId: number;
+
+  constructor() {
+    this.soundClips = new Map();
+    this.triggerWords = new Map();
+    this.currentSoundClipId = 1;
+    this.currentTriggerWordId = 1;
+  }
+
+  async getSoundClips(): Promise<SoundClip[]> {
+    return Array.from(this.soundClips.values());
+  }
+
+  async getSoundClip(id: number): Promise<SoundClip | undefined> {
+    return this.soundClips.get(id);
+  }
+
+  async createSoundClip(insertSoundClip: InsertSoundClip): Promise<SoundClip> {
+    const id = this.currentSoundClipId++;
+    const soundClip: SoundClip = { ...insertSoundClip, id };
+    this.soundClips.set(id, soundClip);
+    return soundClip;
+  }
+
+  async deleteSoundClip(id: number): Promise<void> {
+    this.soundClips.delete(id);
+    // Also delete associated trigger words
+    for (const [triggerId, triggerWord] of Array.from(this.triggerWords.entries())) {
+      if (triggerWord.soundClipId === id) {
+        this.triggerWords.delete(triggerId);
+      }
+    }
+  }
+
+  async getTriggerWords(): Promise<TriggerWord[]> {
+    return Array.from(this.triggerWords.values());
+  }
+
+  async getTriggerWord(id: number): Promise<TriggerWord | undefined> {
+    return this.triggerWords.get(id);
+  }
+
+  async createTriggerWord(insertTriggerWord: InsertTriggerWord): Promise<TriggerWord> {
+    const id = this.currentTriggerWordId++;
+    const triggerWord: TriggerWord = { ...insertTriggerWord, id };
+    this.triggerWords.set(id, triggerWord);
+    return triggerWord;
+  }
+
+  async updateTriggerWord(id: number, updates: Partial<InsertTriggerWord>): Promise<TriggerWord | undefined> {
+    const existing = this.triggerWords.get(id);
+    if (!existing) return undefined;
+    
+    const updated: TriggerWord = { 
+      ...existing, 
+      ...updates,
+      enabled: updates.enabled ?? existing.enabled,
+      caseSensitive: updates.caseSensitive ?? existing.caseSensitive
+    };
+    this.triggerWords.set(id, updated);
+    return updated;
+  }
+
+  async deleteTriggerWord(id: number): Promise<void> {
+    this.triggerWords.delete(id);
+  }
+}
+
+export const storage = new MemStorage();
