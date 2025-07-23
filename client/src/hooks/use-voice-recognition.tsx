@@ -182,9 +182,12 @@ export function useVoiceRecognition() {
 
         const fullTranscript = finalTranscript || interimTranscript;
         setTranscript(fullTranscript);
-        console.log("Transcript:", fullTranscript);
+        console.log("🎤 Speech detected:", fullTranscript);
+        console.log("📝 Final transcript:", finalTranscript);
+        console.log("⏳ Interim transcript:", interimTranscript);
 
         if (finalTranscript) {
+          console.log("🔍 Checking for trigger words in:", finalTranscript);
           checkForTriggerWords(finalTranscript);
         }
       };

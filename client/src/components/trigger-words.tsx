@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, ArrowRight } from "lucide-react";
+import { Plus, Edit, Trash2, ArrowRight, Volume2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { TriggerWord, SoundClip } from "@shared/schema";
@@ -142,6 +142,23 @@ export default function TriggerWords() {
     return clip ? clip.name : "Unknown Sound";
   };
 
+  const testSound = (soundClipId: number) => {
+    const clip = soundClips.find(c => c.id === soundClipId);
+    if (clip) {
+      console.log("🔊 Testing sound:", clip.name, clip.url);
+      const audio = new Audio(clip.url);
+      audio.volume = 0.75;
+      audio.play().catch(error => {
+        console.error("Failed to play sound:", error);
+        toast({
+          title: "Error",
+          description: "Failed to play sound. Check browser permissions.",
+          variant: "destructive",
+        });
+      });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -256,6 +273,15 @@ export default function TriggerWords() {
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => testSound(trigger.soundClipId)}
+                    className="text-gray-500 hover:text-green-500"
+                    title="Test sound"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
