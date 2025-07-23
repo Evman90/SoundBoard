@@ -30,7 +30,11 @@ export default function SoundLibrary() {
         console.log(`FormData ${key}:`, value);
       }
       
-      const response = await apiRequest("POST", "/api/sound-clips", formData);
+      // Use direct fetch for file uploads to preserve FormData
+      const response = await fetch("/api/sound-clips", {
+        method: "POST",
+        body: formData,
+      });
       
       if (!response.ok) {
         const error = await response.text();
