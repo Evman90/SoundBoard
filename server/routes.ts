@@ -45,7 +45,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload sound clip
   app.post("/api/sound-clips", upload.single("audio"), async (req: Request & { file?: Express.Multer.File }, res) => {
     try {
+      console.log("Upload request received");
+      console.log("Request file:", req.file);
+      console.log("Request body:", req.body);
+      console.log("Request headers:", req.headers);
+      
       if (!req.file) {
+        console.log("No file found in request");
         return res.status(400).json({ message: "No audio file provided" });
       }
 

@@ -24,7 +24,20 @@ export default function SoundLibrary() {
 
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      console.log("Sending form data to server...");
+      // Log form data contents
+      for (const [key, value] of formData.entries()) {
+        console.log(`FormData ${key}:`, value);
+      }
+      
       const response = await apiRequest("POST", "/api/sound-clips", formData);
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Upload failed:", response.status, error);
+        throw new Error(`Upload failed: ${response.status} ${error}`);
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -34,10 +47,11 @@ export default function SoundLibrary() {
         description: "Sound clip uploaded successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Upload mutation error:", error);
       toast({
         title: "Error",
-        description: "Failed to upload sound clip",
+        description: `Failed to upload sound clip: ${error.message}`,
         variant: "destructive",
       });
     },
@@ -67,6 +81,8 @@ export default function SoundLibrary() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log("Uploading file:", file.name, file.size, file.type);
+
     const formData = new FormData();
     formData.append("audio", file);
     formData.append("name", file.name.replace(/\.[^/.]+$/, ""));
@@ -75,11 +91,32 @@ export default function SoundLibrary() {
     const audio = new Audio();
     audio.src = URL.createObjectURL(file);
     
-    audio.addEventListener('loadedmetadata', () => {
+    const handleMetadata = () => {
       formData.append("duration", audio.duration.toString());
+      console.log("Audio duration:", audio.duration);
       uploadMutation.mutate(formData);
       URL.revokeObjectURL(audio.src);
-    });
+    };
+
+    const handleError = () => {
+      console.log("Could not load audio metadata, using default duration");
+      formData.append("duration", "0");
+      uploadMutation.mutate(formData);
+      URL.revokeObjectURL(audio.src);
+    };
+    
+    audio.addEventListener('loadedmetadata', handleMetadata);
+    audio.addEventListener('error', handleError);
+    
+    // Fallback timeout in case metadata doesn't load
+    setTimeout(() => {
+      if (audio.readyState === 0) {
+        console.log("Metadata loading timeout, proceeding without duration");
+        formData.append("duration", "0");
+        uploadMutation.mutate(formData);
+        URL.revokeObjectURL(audio.src);
+      }
+    }, 3000);
   };
 
   const filteredSoundClips = soundClips.filter(clip =>
