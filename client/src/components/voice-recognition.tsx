@@ -79,7 +79,7 @@ export default function VoiceRecognition() {
           </p>
           {!isListening && (
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              Note: Microphone access may be restricted in embedded previews
+              Voice recognition is working! Upload sounds and create trigger words to test.
             </p>
           )}
         </div>

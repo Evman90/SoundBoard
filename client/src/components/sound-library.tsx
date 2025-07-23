@@ -154,6 +154,12 @@ export default function SoundLibrary() {
               variant="secondary"
               className="flex-1"
               size="sm"
+              onClick={() => {
+                if (soundClips.length > 0) {
+                  const randomClip = soundClips[Math.floor(Math.random() * soundClips.length)];
+                  playSound(randomClip.url, randomClip.id, masterVolume / 100);
+                }
+              }}
             >
               Test
             </Button>

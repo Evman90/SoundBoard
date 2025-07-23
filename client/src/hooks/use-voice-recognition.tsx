@@ -214,12 +214,16 @@ export function useVoiceRecognition() {
         console.log("Speech recognition ended");
         if (isListening) {
           console.log("Restarting speech recognition...");
-          try {
-            recognition.start();
-          } catch (e) {
-            console.error("Failed to restart recognition:", e);
-            setIsListening(false);
-          }
+          setTimeout(() => {
+            try {
+              if (isListening && recognitionRef.current) {
+                recognition.start();
+              }
+            } catch (e) {
+              console.error("Failed to restart recognition:", e);
+              setIsListening(false);
+            }
+          }, 100);
         }
       };
 
