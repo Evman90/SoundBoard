@@ -47,6 +47,10 @@ export function useVoiceRecognition() {
     queryKey: ["/api/sound-clips"],
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const supported = !!SpeechRecognition;
@@ -119,6 +123,7 @@ export function useVoiceRecognition() {
 
   const checkForTriggerWords = useCallback((text: string) => {
     const lowerText = text.toLowerCase();
+    let triggerMatched = false;
     
     triggerWords.forEach((trigger) => {
       if (!trigger.enabled) return;
@@ -127,6 +132,8 @@ export function useVoiceRecognition() {
       const searchText = trigger.caseSensitive ? text : lowerText;
       
       if (searchText.includes(phrase)) {
+        triggerMatched = true;
+        
         // Implement cooldown to prevent rapid repeated triggers
         const cooldownKey = `${trigger.id}-${phrase}`;
         if (triggerCooldownRef.current.has(cooldownKey)) return;
@@ -139,11 +146,32 @@ export function useVoiceRecognition() {
         // Find and play the associated sound
         const soundClip = soundClips.find(clip => clip.id === trigger.soundClipId);
         if (soundClip) {
+          console.log("🎯 Trigger matched:", phrase, "-> Playing:", soundClip.name);
           playSound(soundClip.url, soundClip.id, 0.75); // Play at 75% volume
         }
       }
     });
-  }, [triggerWords, soundClips, playSound]);
+
+    // Check for default response if no triggers matched and speech was detected
+    if (!triggerMatched && text.trim().length > 0 && settings?.defaultResponseEnabled && settings.defaultResponseSoundClipId) {
+      const cooldownKey = "default-response";
+      if (!triggerCooldownRef.current.has(cooldownKey)) {
+        triggerCooldownRef.current.add(cooldownKey);
+        setTimeout(() => {
+          triggerCooldownRef.current.delete(cooldownKey);
+        }, settings.defaultResponseDelay || 2000);
+
+        // Play default response after a delay
+        setTimeout(() => {
+          const defaultSoundClip = soundClips.find(clip => clip.id === settings.defaultResponseSoundClipId);
+          if (defaultSoundClip) {
+            console.log("🔄 No trigger matched, playing default response:", defaultSoundClip.name);
+            playSound(defaultSoundClip.url, defaultSoundClip.id, 0.75);
+          }
+        }, settings.defaultResponseDelay || 2000);
+      }
+    }
+  }, [triggerWords, soundClips, playSound, settings]);
 
   const startListening = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {

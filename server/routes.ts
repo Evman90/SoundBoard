@@ -5,7 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertSoundClipSchema, insertTriggerWordSchema } from "@shared/schema";
+import { insertSoundClipSchema, insertTriggerWordSchema, insertSettingsSchema } from "@shared/schema";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -151,6 +151,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Trigger word deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete trigger word" });
+    }
+  });
+
+  // Get settings
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  // Update settings
+  app.patch("/api/settings", async (req, res) => {
+    try {
+      const updates = insertSettingsSchema.partial().parse(req.body);
+      const settings = await storage.updateSettings(updates);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(400).json({ message: "Invalid settings data" });
     }
   });
 

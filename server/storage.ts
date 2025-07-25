@@ -1,4 +1,4 @@
-import { soundClips, triggerWords, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord } from "@shared/schema";
+import { soundClips, triggerWords, settings, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord, type Settings, type InsertSettings } from "@shared/schema";
 
 export interface IStorage {
   // Sound clips
@@ -13,17 +13,28 @@ export interface IStorage {
   createTriggerWord(triggerWord: InsertTriggerWord): Promise<TriggerWord>;
   updateTriggerWord(id: number, triggerWord: Partial<InsertTriggerWord>): Promise<TriggerWord | undefined>;
   deleteTriggerWord(id: number): Promise<void>;
+  
+  // Settings
+  getSettings(): Promise<Settings>;
+  updateSettings(settings: Partial<InsertSettings>): Promise<Settings>;
 }
 
 export class MemStorage implements IStorage {
   private soundClips: Map<number, SoundClip>;
   private triggerWords: Map<number, TriggerWord>;
+  private settings: Settings;
   private currentSoundClipId: number;
   private currentTriggerWordId: number;
 
   constructor() {
     this.soundClips = new Map();
     this.triggerWords = new Map();
+    this.settings = {
+      id: 1,
+      defaultResponseEnabled: false,
+      defaultResponseSoundClipId: null,
+      defaultResponseDelay: 2000,
+    };
     this.currentSoundClipId = 1;
     this.currentTriggerWordId = 1;
   }
@@ -84,6 +95,18 @@ export class MemStorage implements IStorage {
 
   async deleteTriggerWord(id: number): Promise<void> {
     this.triggerWords.delete(id);
+  }
+
+  async getSettings(): Promise<Settings> {
+    return this.settings;
+  }
+
+  async updateSettings(updates: Partial<InsertSettings>): Promise<Settings> {
+    this.settings = { 
+      ...this.settings, 
+      ...updates 
+    };
+    return this.settings;
   }
 }
 
