@@ -84,15 +84,27 @@ export function useVoiceRecognition() {
   const initializeAudioAnalyzer = useCallback(async () => {
     try {
       console.log("Requesting microphone access...");
+      
+      // Detect mobile for optimized audio settings
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      const audioConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        // Mobile optimizations
+        ...(isMobile && {
+          sampleRate: 16000, // Lower sample rate for mobile
+          channelCount: 1, // Mono audio for better mobile performance
+          latency: 0.2 // Higher latency tolerance for mobile
+        })
+      };
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
+        audio: audioConstraints
       });
       streamRef.current = stream;
-      console.log("Microphone access granted");
+      console.log("Microphone access granted with mobile optimizations:", isMobile);
 
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
@@ -207,9 +219,22 @@ export function useVoiceRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       
-      recognition.continuous = true;
+      // Detect mobile for optimized speech recognition settings
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      
+      // Mobile-optimized settings
+      recognition.continuous = !isMobile; // Use non-continuous on mobile for better stability
       recognition.interimResults = true;
       recognition.lang = "en-US";
+      
+      // Android-specific optimizations
+      if (isAndroid) {
+        recognition.maxAlternatives = 1; // Reduce alternatives for better performance
+        console.log("Applied Android-specific optimizations");
+      }
+      
+      console.log("Speech recognition settings - Mobile:", isMobile, "Continuous:", recognition.continuous);
 
       recognition.onstart = () => {
         console.log("Speech recognition started");
@@ -238,6 +263,18 @@ export function useVoiceRecognition() {
         if (finalTranscript) {
           console.log("🔍 Checking for trigger words in:", finalTranscript);
           checkForTriggerWords(finalTranscript);
+          
+          // Mobile optimization: provide haptic feedback when trigger words are detected
+          if (isMobile && navigator.vibrate) {
+            // Check if any trigger word was matched (simplified check)
+            const lowerText = finalTranscript.toLowerCase();
+            const hasMatch = triggerWords.some(trigger => 
+              trigger.enabled && lowerText.includes(trigger.caseSensitive ? trigger.phrase : trigger.phrase.toLowerCase())
+            );
+            if (hasMatch) {
+              navigator.vibrate(200); // Trigger detected vibration
+            }
+          }
         }
       };
 
@@ -289,6 +326,10 @@ export function useVoiceRecognition() {
         console.log("Speech recognition ended");
         if (isListening) {
           console.log("Restarting speech recognition...");
+          
+          // Different restart strategies for mobile vs desktop
+          const restartDelay = isMobile ? 1000 : 500; // Longer delay on mobile
+          
           setTimeout(() => {
             try {
               if (isListening && recognitionRef.current) {
@@ -296,20 +337,25 @@ export function useVoiceRecognition() {
               }
             } catch (e) {
               console.error("Failed to restart recognition:", e);
-              // Wait longer before trying again
+              
+              // Mobile fallback: longer wait and simplified retry
+              const fallbackDelay = isMobile ? 2000 : 1000;
               setTimeout(() => {
                 if (isListening) {
                   try {
                     recognition.start();
                   } catch (e2) {
                     console.error("Failed to restart recognition after retry:", e2);
-                    setErrorMessage("Speech recognition stopped unexpectedly. Click Stop and Start again.");
+                    setErrorMessage(isMobile 
+                      ? "Speech recognition stopped. Tap Stop and Start again if needed." 
+                      : "Speech recognition stopped unexpectedly. Click Stop and Start again."
+                    );
                     setIsListening(false);
                   }
                 }
-              }, 1000);
+              }, fallbackDelay);
             }
-          }, 500); // Increased delay to prevent rapid restarts
+          }, restartDelay);
         }
       };
 

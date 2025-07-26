@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, MicOff, Trash2 } from "lucide-react";
+import { Mic, MicOff, Trash2, Smartphone } from "lucide-react";
 import { useVoiceRecognition } from "@/hooks/use-voice-recognition";
 import AudioVisualizer from "@/components/audio-visualizer";
 
@@ -18,17 +18,37 @@ export default function VoiceRecognition() {
   } = useVoiceRecognition();
 
   const [status, setStatus] = useState("Ready to Listen");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const mobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    setIsMobile(mobile);
+  }, []);
 
   const toggleListening = async () => {
+    // Haptic feedback for mobile devices
+    if (isMobile && navigator.vibrate) {
+      navigator.vibrate(50); // Short vibration
+    }
+    
     if (isListening) {
       stopListening();
       setStatus("Ready to Listen");
     } else {
       const success = await startListening();
       if (success) {
-        setStatus("Listening for trigger words...");
+        setStatus(isMobile ? "Listening... (Tap to stop)" : "Listening for trigger words...");
+        // Success haptic feedback
+        if (isMobile && navigator.vibrate) {
+          navigator.vibrate([50, 100, 50]); // Success pattern
+        }
       } else {
         setStatus("Failed to start listening");
+        // Error haptic feedback
+        if (isMobile && navigator.vibrate) {
+          navigator.vibrate([100, 50, 100, 50, 100]); // Error pattern
+        }
       }
     }
   };
@@ -66,21 +86,35 @@ export default function VoiceRecognition() {
         <div className="text-center mb-6">
           <Button
             onClick={toggleListening}
-            className={`w-24 h-24 rounded-full text-white transition-all duration-200 ${
+            className={`${isMobile ? 'w-32 h-32' : 'w-24 h-24'} rounded-full text-white transition-all duration-200 touch-manipulation ${
               isListening 
                 ? "bg-green-500 hover:bg-green-600 shadow-lg animate-pulse" 
                 : "bg-green-500 hover:bg-green-600"
             }`}
           >
-            {isListening ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+            {isListening ? <MicOff className={isMobile ? "h-10 w-10" : "h-8 w-8"} /> : <Mic className={isMobile ? "h-10 w-10" : "h-8 w-8"} />}
           </Button>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-            {isListening ? "Click to stop listening" : "Click to start listening"}
+          
+          {/* Mobile-optimized status */}
+          <p className={`${isMobile ? 'text-base' : 'text-sm'} text-gray-600 dark:text-gray-400 mt-3 font-medium`}>
+            {isListening 
+              ? (isMobile ? "Tap to stop listening" : "Click to stop listening")
+              : (isMobile ? "Tap to start listening" : "Click to start listening")
+            }
           </p>
+          
           {!isListening && (
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              Voice recognition is working! Upload sounds and create trigger words to test.
-            </p>
+            <div className="mt-2">
+              <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-500 dark:text-gray-500`}>
+                {isMobile ? "Voice recognition optimized for mobile!" : "Voice recognition is working! Upload sounds and create trigger words to test."}
+              </p>
+              {isMobile && (
+                <div className="flex items-center justify-center mt-1 text-xs text-blue-600 dark:text-blue-400">
+                  <Smartphone className="h-3 w-3 mr-1" />
+                  Mobile mode active
+                </div>
+              )}
+            </div>
           )}
         </div>
 
