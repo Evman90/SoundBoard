@@ -138,27 +138,149 @@ export class MemStorage implements IStorage {
   }
 
   async exportProfile(): Promise<any> {
-    // MemStorage implementation - return empty profile for now
+    const soundClips = Array.from(this.soundClips.values());
+    const triggerWords = Array.from(this.triggerWords.values());
+
+    // Convert sound clips to include base64 audio data
+    const profileSoundClips = [];
+    for (const clip of soundClips) {
+      try {
+        const filePath = path.join(process.cwd(), "uploads", clip.filename);
+        const audioData = fs.readFileSync(filePath, { encoding: 'base64' });
+        profileSoundClips.push({
+          name: clip.name,
+          filename: clip.filename,
+          format: clip.format,
+          duration: clip.duration,
+          size: clip.size,
+          audioData,
+        });
+      } catch (error) {
+        console.warn(`Could not read audio file ${clip.filename}:`, error);
+      }
+    }
+
+    // Convert trigger words to use sound clip names instead of IDs
+    const profileTriggerWords = [];
+    for (const trigger of triggerWords) {
+      const soundClip = soundClips.find(clip => clip.id === trigger.soundClipId);
+      if (soundClip) {
+        profileTriggerWords.push({
+          phrase: trigger.phrase,
+          soundClipName: soundClip.name,
+          caseSensitive: trigger.caseSensitive || false,
+          enabled: trigger.enabled !== false,
+        });
+      }
+    }
+
+    // Convert settings to use sound clip names instead of IDs
+    const defaultResponseSoundClipNames = [];
+    if (this.settings.defaultResponseSoundClipIds) {
+      for (const id of this.settings.defaultResponseSoundClipIds) {
+        const soundClip = soundClips.find(clip => clip.id === id);
+        if (soundClip) {
+          defaultResponseSoundClipNames.push(soundClip.name);
+        }
+      }
+    }
+
     return {
       version: "1.0",
       exportDate: new Date().toISOString(),
-      soundClips: [],
-      triggerWords: [],
+      soundClips: profileSoundClips,
+      triggerWords: profileTriggerWords,
       settings: {
-        defaultResponseEnabled: false,
-        defaultResponseSoundClipNames: [],
-        defaultResponseDelay: 2000,
+        defaultResponseEnabled: this.settings.defaultResponseEnabled || false,
+        defaultResponseSoundClipNames,
+        defaultResponseDelay: this.settings.defaultResponseDelay || 2000,
       },
     };
   }
 
   async importProfile(profileData: any): Promise<void> {
-    // MemStorage implementation - no-op for now
-    console.log("Import profile not implemented for MemStorage");
+    // Clear existing data first
+    await this.clearAllData();
+
+    // Import sound clips
+    const soundClipNameToId = new Map<string, number>();
+    for (const profileClip of profileData.soundClips || []) {
+      try {
+        // Write audio file to uploads directory
+        const filename = `${Date.now()}_${profileClip.filename}`;
+        const filePath = path.join(process.cwd(), "uploads", filename);
+        const audioBuffer = Buffer.from(profileClip.audioData, 'base64');
+        fs.writeFileSync(filePath, audioBuffer);
+
+        // Create sound clip record
+        const soundClipData = {
+          name: profileClip.name,
+          filename,
+          format: profileClip.format,
+          duration: profileClip.duration,
+          size: profileClip.size,
+          url: `/uploads/${filename}`,
+        };
+
+        const createdClip = await this.createSoundClip(soundClipData);
+        soundClipNameToId.set(profileClip.name, createdClip.id);
+      } catch (error) {
+        console.error(`Error importing sound clip ${profileClip.name}:`, error);
+      }
+    }
+
+    // Import trigger words
+    for (const profileTrigger of profileData.triggerWords || []) {
+      const soundClipId = soundClipNameToId.get(profileTrigger.soundClipName);
+      if (soundClipId) {
+        try {
+          await this.createTriggerWord({
+            phrase: profileTrigger.phrase,
+            soundClipId,
+            caseSensitive: profileTrigger.caseSensitive || false,
+            enabled: profileTrigger.enabled !== false,
+          });
+        } catch (error) {
+          console.error(`Error importing trigger word ${profileTrigger.phrase}:`, error);
+        }
+      }
+    }
+
+    // Import settings
+    if (profileData.settings) {
+      const defaultResponseSoundClipIds = [];
+      for (const name of profileData.settings.defaultResponseSoundClipNames || []) {
+        const id = soundClipNameToId.get(name);
+        if (id) {
+          defaultResponseSoundClipIds.push(id);
+        }
+      }
+
+      await this.updateSettings({
+        defaultResponseEnabled: profileData.settings.defaultResponseEnabled || false,
+        defaultResponseSoundClipIds,
+        defaultResponseDelay: profileData.settings.defaultResponseDelay || 2000,
+        defaultResponseIndex: 0,
+      });
+    }
   }
 
   async clearAllData(): Promise<void> {
-    // MemStorage implementation - clear all in-memory data
+    // Delete all sound clip files
+    const existingSoundClips = Array.from(this.soundClips.values());
+    for (const clip of existingSoundClips) {
+      try {
+        const filePath = path.join(process.cwd(), "uploads", clip.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted file: ${filePath}`);
+        }
+      } catch (error) {
+        console.warn(`Could not delete file ${clip.filename}:`, error);
+      }
+    }
+
+    // Clear all in-memory data
     this.soundClips.clear();
     this.triggerWords.clear();
     this.settings = {
@@ -416,5 +538,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Use database storage instead of memory storage
-export const storage = new DatabaseStorage();
+// Use memory storage for session-based data, profiles handle persistence
+export const storage = new MemStorage();

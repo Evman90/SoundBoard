@@ -17,8 +17,8 @@ Preferred communication style: Simple, everyday language.
 ✓ **Multiple Default Responses** - Sequential cycling through multiple default response sounds
 ✓ **Audio Recording Feature** - Direct browser-based recording with WebM support and real-time preview
 ✓ **Mobile Voice Recognition Optimization** - Enhanced mobile support with haptic feedback and touch-optimized UI
-✓ **Persistent Local Storage** - PostgreSQL database stores user data permanently (sound clips, trigger words, settings)
-✓ **Profile System** - Export/import all data as portable JSON files for backup and sharing across devices
+✓ **Session-Based Storage** - Data stored temporarily in memory during browser session for privacy and performance
+✓ **Profile System** - Export/import all data as portable JSON files for permanent storage and sharing across devices
 ✓ **Production Ready** - All essential features working and tested
 
 ## System Architecture
@@ -67,10 +67,10 @@ Preferred communication style: Simple, everyday language.
 - **Enable/Disable**: Toggle individual triggers without deletion
 
 ### Storage System
-- **Database Storage**: PostgreSQL database for persistent data storage
-- **File Storage**: Local filesystem storage for audio files in uploads directory
+- **Session Storage**: In-memory storage for temporary data during browser session
+- **File Storage**: Local filesystem storage for audio files in uploads directory (cleaned on session end)
 - **Interface-based Design**: IStorage interface supporting multiple storage backends
-- **CRUD Operations**: Full create, read, update, delete functionality with data persistence
+- **CRUD Operations**: Full create, read, update, delete functionality with session-based persistence
 
 ### Profile Management System
 - **Export Functionality**: Download all user data (sound clips, trigger words, settings) as portable JSON files
@@ -81,10 +81,11 @@ Preferred communication style: Simple, everyday language.
 
 ## Data Flow
 
-1. **Audio Upload**: Client uploads audio files → Multer processes → Server validates → File stored locally → Database record created
+1. **Audio Upload**: Client uploads audio files → Multer processes → Server validates → File stored locally → Memory record created
 2. **Voice Recognition**: Browser captures audio → Speech API processes → Text transcript generated → Trigger matching performed → Associated sound played
-3. **Trigger Management**: User creates trigger words → Associated with sound clips → Stored in database → Used for real-time matching
+3. **Trigger Management**: User creates trigger words → Associated with sound clips → Stored in memory → Used for real-time matching
 4. **Audio Playback**: Trigger detected → Sound clip retrieved → Audio element created → Played with volume control
+5. **Profile Management**: User exports data → All memory data and audio files packaged → JSON file downloaded → User imports → Data restored to memory
 
 ## External Dependencies
 

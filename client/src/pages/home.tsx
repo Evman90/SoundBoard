@@ -5,6 +5,7 @@ import { Settings, Moon } from "lucide-react";
 import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
 import TriggerWords from "@/components/trigger-words";
+import { SessionWarning } from "@/components/session-warning";
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
@@ -56,6 +57,7 @@ export default function Home() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <SessionWarning />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <VoiceRecognition />

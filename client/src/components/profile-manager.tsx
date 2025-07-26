@@ -133,7 +133,7 @@ export function ProfileManager() {
           Profile Management
         </CardTitle>
         <CardDescription>
-          Export your sound clips, trigger words, and settings to take them with you, or import a previously saved profile.
+          Your data is stored temporarily in this session only. Use profiles to save and restore your soundboard configurations.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -226,6 +226,24 @@ export function ProfileManager() {
         {/* Info Section */}
         <div className="space-y-3">
           <div>
+            <h3 className="text-lg font-medium">⚠️ Session-Based Storage</h3>
+            <div className="text-sm text-muted-foreground space-y-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-md border border-amber-200 dark:border-amber-800">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
+                Important: Your data is only stored temporarily during this session.
+              </p>
+              <p>
+                • Data will be lost when you close the browser or refresh the page
+              </p>
+              <p>
+                • Use "Export Profile" to save your work permanently to your computer
+              </p>
+              <p>
+                • Use "Import Profile" to restore previously saved configurations
+              </p>
+            </div>
+          </div>
+          
+          <div>
             <h3 className="text-lg font-medium">About Profiles</h3>
             <div className="text-sm text-muted-foreground space-y-2">
               <p>
@@ -238,7 +256,7 @@ export function ProfileManager() {
                 • Audio files are embedded as base64 data, so profiles can be large depending on your sound library
               </p>
               <p>
-                • Always export your profile before making major changes as a backup
+                • Export regularly to avoid losing your work
               </p>
             </div>
           </div>
