@@ -19,20 +19,22 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req: any, file: any, cb: any) => {
-    const allowedTypes = /\.(mp3|wav|ogg|webm)$/i;
+    const allowedTypes = /\.(mp3|wav|ogg|webm|json)$/i;
     const allowedMimeTypes = [
       'audio/mpeg', 
       'audio/wav', 
       'audio/wave', 
       'audio/x-wav', 
       'audio/ogg', 
-      'audio/webm'
+      'audio/webm',
+      'application/json',
+      'text/plain'
     ];
     
     if (allowedTypes.test(file.originalname) || allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only MP3, WAV, OGG, and WebM audio files are allowed"));
+      cb(new Error("Only MP3, WAV, OGG, WebM audio files and JSON profile files are allowed"));
     }
   },
 });
@@ -201,6 +203,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting next default response:", error);
       res.status(500).json({ message: "Failed to get next default response" });
+    }
+  });
+
+  // Export profile
+  app.get("/api/profile/export", async (req, res) => {
+    try {
+      const profileData = await storage.exportProfile();
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="callsound-profile-${new Date().toISOString().split('T')[0]}.json"`);
+      res.json(profileData);
+    } catch (error) {
+      console.error("Error exporting profile:", error);
+      res.status(500).json({ message: "Failed to export profile" });
+    }
+  });
+
+  // Import profile
+  app.post("/api/profile/import", upload.single("profile"), async (req: Request & { file?: Express.Multer.File }, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No profile file provided" });
+      }
+
+      // Read and parse the profile file
+      const profileContent = fs.readFileSync(req.file.path, 'utf-8');
+      const profileData = JSON.parse(profileContent);
+
+      // Validate profile data structure
+      if (!profileData.version || !profileData.soundClips || !profileData.triggerWords || !profileData.settings) {
+        return res.status(400).json({ message: "Invalid profile file format" });
+      }
+
+      // Import the profile
+      await storage.importProfile(profileData);
+
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+
+      res.json({ message: "Profile imported successfully" });
+    } catch (error) {
+      console.error("Error importing profile:", error);
+      res.status(500).json({ message: "Failed to import profile" });
     }
   });
 

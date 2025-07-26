@@ -2,6 +2,8 @@ import { soundClips, triggerWords, settings, type SoundClip, type InsertSoundCli
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 
 export interface IStorage {
   // Sound clips
@@ -21,6 +23,11 @@ export interface IStorage {
   getSettings(): Promise<Settings>;
   updateSettings(settings: Partial<InsertSettings>): Promise<Settings>;
   getNextDefaultResponse(): Promise<number | null>;
+
+  // Profile export/import methods
+  exportProfile(): Promise<any>;
+  importProfile(profileData: any): Promise<void>;
+  clearAllData(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -129,6 +136,39 @@ export class MemStorage implements IStorage {
 
     return soundClipId;
   }
+
+  async exportProfile(): Promise<any> {
+    // MemStorage implementation - return empty profile for now
+    return {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      soundClips: [],
+      triggerWords: [],
+      settings: {
+        defaultResponseEnabled: false,
+        defaultResponseSoundClipNames: [],
+        defaultResponseDelay: 2000,
+      },
+    };
+  }
+
+  async importProfile(profileData: any): Promise<void> {
+    // MemStorage implementation - no-op for now
+    console.log("Import profile not implemented for MemStorage");
+  }
+
+  async clearAllData(): Promise<void> {
+    // MemStorage implementation - clear all in-memory data
+    this.soundClips.clear();
+    this.triggerWords.clear();
+    this.settings = {
+      id: 1,
+      defaultResponseEnabled: false,
+      defaultResponseSoundClipIds: [],
+      defaultResponseDelay: 2000,
+      defaultResponseIndex: 0,
+    };
+  }
 }
 
 // Database storage implementation
@@ -216,6 +256,163 @@ export class DatabaseStorage implements IStorage {
     await this.updateSettings({ defaultResponseIndex: nextIndex });
     
     return currentSettings.defaultResponseSoundClipIds[currentIndex];
+  }
+
+  async exportProfile(): Promise<any> {
+    const soundClips = await this.getSoundClips();
+    const triggerWords = await this.getTriggerWords();
+    const settings = await this.getSettings();
+
+    // Convert sound clips to include base64 audio data
+    const profileSoundClips = [];
+    for (const clip of soundClips) {
+      try {
+        const filePath = path.join(process.cwd(), "uploads", clip.filename);
+        const audioData = fs.readFileSync(filePath, { encoding: 'base64' });
+        profileSoundClips.push({
+          name: clip.name,
+          filename: clip.filename,
+          format: clip.format,
+          duration: clip.duration,
+          size: clip.size,
+          audioData,
+        });
+      } catch (error) {
+        console.warn(`Could not read audio file ${clip.filename}:`, error);
+      }
+    }
+
+    // Convert trigger words to use sound clip names instead of IDs
+    const profileTriggerWords = [];
+    for (const trigger of triggerWords) {
+      const soundClip = soundClips.find(clip => clip.id === trigger.soundClipId);
+      if (soundClip) {
+        profileTriggerWords.push({
+          phrase: trigger.phrase,
+          soundClipName: soundClip.name,
+          caseSensitive: trigger.caseSensitive || false,
+          enabled: trigger.enabled !== false,
+        });
+      }
+    }
+
+    // Convert settings to use sound clip names instead of IDs
+    const defaultResponseSoundClipNames = [];
+    if (settings.defaultResponseSoundClipIds) {
+      for (const id of settings.defaultResponseSoundClipIds) {
+        const soundClip = soundClips.find(clip => clip.id === id);
+        if (soundClip) {
+          defaultResponseSoundClipNames.push(soundClip.name);
+        }
+      }
+    }
+
+    return {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      soundClips: profileSoundClips,
+      triggerWords: profileTriggerWords,
+      settings: {
+        defaultResponseEnabled: settings.defaultResponseEnabled || false,
+        defaultResponseSoundClipNames,
+        defaultResponseDelay: settings.defaultResponseDelay || 2000,
+      },
+    };
+  }
+
+  async importProfile(profileData: any): Promise<void> {
+    // Clear existing data first
+    await this.clearAllData();
+
+    // Import sound clips
+    const soundClipNameToId = new Map<string, number>();
+    for (const profileClip of profileData.soundClips || []) {
+      try {
+        // Write audio file to uploads directory
+        const filename = `${Date.now()}_${profileClip.filename}`;
+        const filePath = path.join(process.cwd(), "uploads", filename);
+        const audioBuffer = Buffer.from(profileClip.audioData, 'base64');
+        fs.writeFileSync(filePath, audioBuffer);
+
+        // Create sound clip record
+        const soundClipData = {
+          name: profileClip.name,
+          filename,
+          format: profileClip.format,
+          duration: profileClip.duration,
+          size: profileClip.size,
+          url: `/uploads/${filename}`,
+        };
+
+        const createdClip = await this.createSoundClip(soundClipData);
+        soundClipNameToId.set(profileClip.name, createdClip.id);
+      } catch (error) {
+        console.error(`Error importing sound clip ${profileClip.name}:`, error);
+      }
+    }
+
+    // Import trigger words
+    for (const profileTrigger of profileData.triggerWords || []) {
+      const soundClipId = soundClipNameToId.get(profileTrigger.soundClipName);
+      if (soundClipId) {
+        try {
+          await this.createTriggerWord({
+            phrase: profileTrigger.phrase,
+            soundClipId,
+            caseSensitive: profileTrigger.caseSensitive || false,
+            enabled: profileTrigger.enabled !== false,
+          });
+        } catch (error) {
+          console.error(`Error importing trigger word ${profileTrigger.phrase}:`, error);
+        }
+      }
+    }
+
+    // Import settings
+    if (profileData.settings) {
+      const defaultResponseSoundClipIds = [];
+      for (const name of profileData.settings.defaultResponseSoundClipNames || []) {
+        const id = soundClipNameToId.get(name);
+        if (id) {
+          defaultResponseSoundClipIds.push(id);
+        }
+      }
+
+      await this.updateSettings({
+        defaultResponseEnabled: profileData.settings.defaultResponseEnabled || false,
+        defaultResponseSoundClipIds,
+        defaultResponseDelay: profileData.settings.defaultResponseDelay || 2000,
+        defaultResponseIndex: 0,
+      });
+    }
+  }
+
+  async clearAllData(): Promise<void> {
+    // Delete all sound clips and their files
+    const existingSoundClips = await this.getSoundClips();
+    for (const clip of existingSoundClips) {
+      try {
+        const filePath = path.join(process.cwd(), "uploads", clip.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (error) {
+        console.warn(`Could not delete file ${clip.filename}:`, error);
+      }
+    }
+
+    // Clear database tables
+    await this.db.delete(triggerWords);
+    await this.db.delete(soundClips);
+    
+    // Reset settings to defaults
+    const currentSettings = await this.getSettings();
+    await this.updateSettings({
+      defaultResponseEnabled: false,
+      defaultResponseSoundClipIds: [],
+      defaultResponseDelay: 2000,
+      defaultResponseIndex: 0,
+    });
   }
 }
 

@@ -46,3 +46,30 @@ export type InsertTriggerWord = z.infer<typeof insertTriggerWordSchema>;
 export type TriggerWord = typeof triggerWords.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
+
+// Profile export/import schemas
+export const profileSchema = z.object({
+  version: z.string().default("1.0"),
+  exportDate: z.string(),
+  soundClips: z.array(z.object({
+    name: z.string(),
+    filename: z.string(),
+    format: z.string(),
+    duration: z.number(),
+    size: z.number(),
+    audioData: z.string(), // base64 encoded audio data
+  })),
+  triggerWords: z.array(z.object({
+    phrase: z.string(),
+    soundClipName: z.string(), // Reference by name instead of ID
+    caseSensitive: z.boolean(),
+    enabled: z.boolean(),
+  })),
+  settings: z.object({
+    defaultResponseEnabled: z.boolean(),
+    defaultResponseSoundClipNames: z.array(z.string()), // Reference by names instead of IDs
+    defaultResponseDelay: z.number(),
+  }),
+});
+
+export type Profile = z.infer<typeof profileSchema>;

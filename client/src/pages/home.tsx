@@ -1,14 +1,13 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Settings, Moon } from "lucide-react";
 import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
 import TriggerWords from "@/components/trigger-words";
-import SettingsComponent from "@/components/settings";
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -42,14 +41,15 @@ export default function Home() {
               >
                 <Moon className="h-5 w-5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSettings(!showSettings)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
+              <Link href="/settings">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -60,7 +60,6 @@ export default function Home() {
           <div className="lg:col-span-2 space-y-6">
             <VoiceRecognition />
             <TriggerWords />
-            {showSettings && <SettingsComponent />}
           </div>
           <div>
             <SoundLibrary />
