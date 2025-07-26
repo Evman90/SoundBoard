@@ -13,7 +13,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Voice-Activated Soundboard Complete** - Built full-stack application with voice recognition and automatic sound triggering
 ✓ **Core Features Implemented** - Sound upload, trigger word management, real-time audio visualization
 ✓ **User Interface** - Modern responsive design with dark mode support
-✓ **Browser Compatibility** - Web Speech API integration with Chrome/Edge support
+✓ **Browser Compatibility** - Web Speech API integration with Chrome/Edge support (desktop optimized)
 ✓ **Multiple Default Responses** - Sequential cycling through multiple default response sounds
 ✓ **Audio Recording Feature** - Direct browser-based recording with WebM support and real-time preview
 ✓ **Production Ready** - All essential features working and tested
@@ -93,9 +93,15 @@ Preferred communication style: Simple, everyday language.
 - **ESBuild**: Fast JavaScript bundler for production
 
 ### Browser APIs
-- **Web Speech Recognition**: Voice input processing
+- **Web Speech Recognition**: Voice input processing (desktop Chrome/Edge optimized)
 - **Web Audio API**: Audio level monitoring and playback
 - **File API**: Client-side file handling
+
+### Platform Compatibility
+- **Desktop**: Full voice recognition support in Chrome and Edge browsers
+- **Mobile/Android**: Limited voice recognition support; recording and upload features work normally
+- **iOS**: Recording and upload features available; voice recognition support varies
+- **Alternative Workflows**: Mobile users can use audio recording and file upload features
 
 ## Deployment Strategy
 

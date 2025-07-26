@@ -89,8 +89,17 @@ export default function VoiceRecognition() {
 
         {/* Error Message */}
         {errorMessage && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 mb-4">
-            <p className="text-red-700 dark:text-red-300 text-sm">{errorMessage}</p>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 mb-4">
+            <p className="text-yellow-700 dark:text-yellow-300 text-sm font-medium">{errorMessage}</p>
+            {errorMessage.includes("Android") && (
+              <div className="mt-3 text-xs text-yellow-600 dark:text-yellow-400 space-y-1">
+                <p className="font-medium">💡 Android alternatives:</p>
+                <p>• Use the recording feature to create sounds directly</p>
+                <p>• Upload audio files from your device</p>
+                <p>• Voice recognition works perfectly on desktop Chrome/Edge</p>
+                <p>• All other features work normally on mobile</p>
+              </div>
+            )}
           </div>
         )}
 

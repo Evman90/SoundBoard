@@ -54,17 +54,30 @@ export function useVoiceRecognition() {
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const supported = !!SpeechRecognition;
+    
+    // Detect mobile devices
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
     setIsSupported(supported);
     
     if (!supported) {
-      setErrorMessage("Speech recognition not supported in this browser. Use Chrome or Edge for best results.");
+      if (isMobile) {
+        setErrorMessage("Voice recognition has limited support on mobile devices. Works best on desktop Chrome or Edge.");
+      } else {
+        setErrorMessage("Speech recognition not supported in this browser. Use Chrome or Edge for best results.");
+      }
     } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setErrorMessage("Microphone access not available. Please check browser permissions.");
+    } else if (isAndroid) {
+      setErrorMessage("Voice recognition may have limited functionality on Android. For best results, use desktop Chrome or Edge.");
     } else {
       setErrorMessage("");
     }
     
     console.log("Voice recognition support:", supported);
+    console.log("Is mobile device:", isMobile);
+    console.log("Is Android:", isAndroid);
     console.log("User agent:", navigator.userAgent);
   }, []);
 
