@@ -24,14 +24,14 @@ export default function Settings() {
   });
 
   const [defaultResponseEnabled, setDefaultResponseEnabled] = useState(false);
-  const [defaultResponseSoundClipId, setDefaultResponseSoundClipId] = useState("");
+  const [defaultResponseSoundClipIds, setDefaultResponseSoundClipIds] = useState<number[]>([]);
   const [defaultResponseDelay, setDefaultResponseDelay] = useState(2000);
 
   // Update local state when settings data loads
   React.useEffect(() => {
     if (settings) {
       setDefaultResponseEnabled(settings.defaultResponseEnabled || false);
-      setDefaultResponseSoundClipId(settings.defaultResponseSoundClipId?.toString() || "");
+      setDefaultResponseSoundClipIds(settings.defaultResponseSoundClipIds || []);
       setDefaultResponseDelay(settings.defaultResponseDelay || 2000);
     }
   }, [settings]);
@@ -39,7 +39,7 @@ export default function Settings() {
   const updateMutation = useMutation({
     mutationFn: async (data: {
       defaultResponseEnabled: boolean;
-      defaultResponseSoundClipId?: number;
+      defaultResponseSoundClipIds?: number[];
       defaultResponseDelay: number;
     }) => {
       const response = await apiRequest("PATCH", "/api/settings", data);
@@ -64,10 +64,18 @@ export default function Settings() {
   const handleSave = () => {
     const data = {
       defaultResponseEnabled,
-      defaultResponseSoundClipId: defaultResponseSoundClipId ? parseInt(defaultResponseSoundClipId) : undefined,
+      defaultResponseSoundClipIds: defaultResponseSoundClipIds.length > 0 ? defaultResponseSoundClipIds : undefined,
       defaultResponseDelay,
     };
     updateMutation.mutate(data);
+  };
+
+  const toggleSoundClip = (clipId: number) => {
+    setDefaultResponseSoundClipIds(prev => 
+      prev.includes(clipId) 
+        ? prev.filter(id => id !== clipId)
+        : [...prev, clipId]
+    );
   };
 
   return (
@@ -94,22 +102,30 @@ export default function Settings() {
           {defaultResponseEnabled && (
             <>
               <div>
-                <Label htmlFor="defaultSound">Default Response Sound</Label>
-                <Select
-                  value={defaultResponseSoundClipId}
-                  onValueChange={setDefaultResponseSoundClipId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a default sound..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {soundClips.map((clip) => (
-                      <SelectItem key={clip.id} value={clip.id.toString()}>
-                        {clip.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Default Response Sounds (cycles through sequentially)</Label>
+                <div className="space-y-2 mt-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                  {soundClips.length === 0 ? (
+                    <p className="text-sm text-gray-500">No sound clips available. Upload some sounds first.</p>
+                  ) : (
+                    soundClips.map((clip) => (
+                      <div key={clip.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`clip-${clip.id}`}
+                          checked={defaultResponseSoundClipIds.includes(clip.id)}
+                          onCheckedChange={() => toggleSoundClip(clip.id)}
+                        />
+                        <Label htmlFor={`clip-${clip.id}`} className="text-sm font-normal cursor-pointer">
+                          {clip.name}
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {defaultResponseSoundClipIds.length > 0 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    Selected {defaultResponseSoundClipIds.length} sound{defaultResponseSoundClipIds.length !== 1 ? 's' : ''}. They will play in the order shown above.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -144,8 +160,10 @@ export default function Settings() {
         <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
           <p className="text-sm text-blue-700 dark:text-blue-300">
             <strong>How it works:</strong> When voice is detected but no trigger words match, 
-            the default sound will play after the specified delay. This is useful for 
-            acknowledging speech that doesn't contain specific commands.
+            a default response sound will play after the specified delay. If multiple sounds are selected, 
+            they will cycle through sequentially - playing the first sound, then the second, then the third, 
+            and so on, returning to the first after reaching the end. This creates varied responses 
+            for unmatched speech.
           </p>
         </div>
       </CardContent>

@@ -176,6 +176,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get next default response sound clip ID
+  app.get("/api/settings/next-default-response", async (req, res) => {
+    try {
+      const soundClipId = await storage.getNextDefaultResponse();
+      res.json({ soundClipId });
+    } catch (error) {
+      console.error("Error getting next default response:", error);
+      res.status(500).json({ message: "Failed to get next default response" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

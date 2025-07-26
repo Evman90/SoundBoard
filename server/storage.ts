@@ -17,6 +17,7 @@ export interface IStorage {
   // Settings
   getSettings(): Promise<Settings>;
   updateSettings(settings: Partial<InsertSettings>): Promise<Settings>;
+  getNextDefaultResponse(): Promise<number | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -32,8 +33,9 @@ export class MemStorage implements IStorage {
     this.settings = {
       id: 1,
       defaultResponseEnabled: false,
-      defaultResponseSoundClipId: null,
+      defaultResponseSoundClipIds: [],
       defaultResponseDelay: 2000,
+      defaultResponseIndex: 0,
     };
     this.currentSoundClipId = 1;
     this.currentTriggerWordId = 1;
@@ -107,6 +109,22 @@ export class MemStorage implements IStorage {
       ...updates 
     };
     return this.settings;
+  }
+
+  async getNextDefaultResponse(): Promise<number | null> {
+    if (!this.settings.defaultResponseEnabled || !this.settings.defaultResponseSoundClipIds || this.settings.defaultResponseSoundClipIds.length === 0) {
+      return null;
+    }
+
+    const soundClipIds = this.settings.defaultResponseSoundClipIds;
+    const currentIndex = this.settings.defaultResponseIndex || 0;
+    const soundClipId = soundClipIds[currentIndex];
+
+    // Update index for next time (cycle back to 0 if at end)
+    const nextIndex = (currentIndex + 1) % soundClipIds.length;
+    this.settings.defaultResponseIndex = nextIndex;
+
+    return soundClipId;
   }
 }
 

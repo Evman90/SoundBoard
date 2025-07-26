@@ -23,8 +23,9 @@ export const triggerWords = pgTable("trigger_words", {
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
   defaultResponseEnabled: boolean("default_response_enabled").default(false),
-  defaultResponseSoundClipId: integer("default_response_sound_clip_id"),
+  defaultResponseSoundClipIds: integer("default_response_sound_clip_ids").array().default([]),
   defaultResponseDelay: integer("default_response_delay").default(2000), // milliseconds
+  defaultResponseIndex: integer("default_response_index").default(0),
 });
 
 export const insertSoundClipSchema = createInsertSchema(soundClips).omit({

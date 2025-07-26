@@ -153,7 +153,7 @@ export function useVoiceRecognition() {
     });
 
     // Check for default response if no triggers matched and speech was detected
-    if (!triggerMatched && text.trim().length > 0 && settings?.defaultResponseEnabled && settings.defaultResponseSoundClipId) {
+    if (!triggerMatched && text.trim().length > 0 && settings?.defaultResponseEnabled && settings.defaultResponseSoundClipIds && settings.defaultResponseSoundClipIds.length > 0) {
       const cooldownKey = "default-response";
       if (!triggerCooldownRef.current.has(cooldownKey)) {
         triggerCooldownRef.current.add(cooldownKey);
@@ -161,12 +161,20 @@ export function useVoiceRecognition() {
           triggerCooldownRef.current.delete(cooldownKey);
         }, settings.defaultResponseDelay || 2000);
 
-        // Play default response after a delay
-        setTimeout(() => {
-          const defaultSoundClip = soundClips.find(clip => clip.id === settings.defaultResponseSoundClipId);
-          if (defaultSoundClip) {
-            console.log("🔄 No trigger matched, playing default response:", defaultSoundClip.name);
-            playSound(defaultSoundClip.url, defaultSoundClip.id, 0.75);
+        // Play next default response after a delay
+        setTimeout(async () => {
+          try {
+            const response = await fetch("/api/settings/next-default-response");
+            const data = await response.json();
+            if (data.soundClipId) {
+              const defaultSoundClip = soundClips.find(clip => clip.id === data.soundClipId);
+              if (defaultSoundClip) {
+                console.log("🔄 No trigger matched, playing next default response:", defaultSoundClip.name);
+                playSound(defaultSoundClip.url, defaultSoundClip.id, 0.75);
+              }
+            }
+          } catch (error) {
+            console.error("Error getting next default response:", error);
           }
         }, settings.defaultResponseDelay || 2000);
       }
