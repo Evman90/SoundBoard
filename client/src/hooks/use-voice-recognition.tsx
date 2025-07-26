@@ -233,20 +233,43 @@ export function useVoiceRecognition() {
         switch (event.error) {
           case "not-allowed":
             setErrorMessage("Microphone permission denied. Please allow microphone access.");
+            setIsListening(false);
             break;
           case "no-speech":
-            setErrorMessage("No speech detected. Try speaking louder.");
+            console.log("No speech detected, continuing to listen...");
+            // Don't stop listening for no-speech, it's normal
             break;
           case "audio-capture":
             setErrorMessage("Audio capture failed. Check your microphone.");
+            setIsListening(false);
             break;
           case "network":
             setErrorMessage("Network error. Check your internet connection.");
+            setIsListening(false);
+            break;
+          case "aborted":
+            console.log("Speech recognition was aborted, attempting to restart...");
+            // Try to restart after a brief delay
+            setTimeout(() => {
+              if (isListening) {
+                try {
+                  recognition.start();
+                } catch (e) {
+                  console.error("Failed to restart after abort:", e);
+                  setErrorMessage("Speech recognition stopped. Click Start to try again.");
+                  setIsListening(false);
+                }
+              }
+            }, 500);
             break;
           default:
-            setErrorMessage(`Speech recognition error: ${event.error}`);
+            console.log(`Speech recognition error: ${event.error}, attempting to continue...`);
+            // For other errors, try to continue unless critical
+            if (event.error === "service-not-allowed" || event.error === "language-not-supported") {
+              setErrorMessage(`Speech recognition error: ${event.error}`);
+              setIsListening(false);
+            }
         }
-        setIsListening(false);
       };
 
       recognition.onend = () => {
@@ -260,9 +283,20 @@ export function useVoiceRecognition() {
               }
             } catch (e) {
               console.error("Failed to restart recognition:", e);
-              setIsListening(false);
+              // Wait longer before trying again
+              setTimeout(() => {
+                if (isListening) {
+                  try {
+                    recognition.start();
+                  } catch (e2) {
+                    console.error("Failed to restart recognition after retry:", e2);
+                    setErrorMessage("Speech recognition stopped unexpectedly. Click Stop and Start again.");
+                    setIsListening(false);
+                  }
+                }
+              }, 1000);
             }
-          }, 100);
+          }, 500); // Increased delay to prevent rapid restarts
         }
       };
 
@@ -280,23 +314,43 @@ export function useVoiceRecognition() {
   }, [isSupported, initializeAudioAnalyzer, checkForTriggerWords, isListening]);
 
   const stopListening = useCallback(() => {
+    console.log("Stopping voice recognition...");
+    
+    // Stop speech recognition first
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.log("Recognition already stopped");
+      }
       recognitionRef.current = null;
     }
 
+    // Clean up audio resources
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (e) {
+          console.log("Track already stopped");
+        }
+      });
       streamRef.current = null;
     }
 
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {
+        console.log("Audio context already closed");
+      }
       audioContextRef.current = null;
     }
 
     setIsListening(false);
     setAudioLevel(-42);
+    setErrorMessage("");
+    console.log("Voice recognition stopped and cleaned up");
   }, []);
 
   const clearTranscript = useCallback(() => {
