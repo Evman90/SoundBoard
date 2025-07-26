@@ -3,20 +3,34 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, Play, Pause, Edit, Trash2, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import type { SoundClip } from "@shared/schema";
 
 export default function SoundLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [masterVolume, setMasterVolume] = useState(75);
   const [micSensitivity, setMicSensitivity] = useState(50);
+  const [recordingName, setRecordingName] = useState("");
+  const [showRecordDialog, setShowRecordDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { playSound, stopSound, currentlyPlaying, stopAllSounds } = useAudioPlayer();
+  const { 
+    isRecording, 
+    recordingTime, 
+    audioBlob, 
+    audioUrl, 
+    startRecording, 
+    stopRecording, 
+    clearRecording 
+  } = useAudioRecorder();
 
   const { data: soundClips = [], isLoading } = useQuery<SoundClip[]>({
     queryKey: ["/api/sound-clips"],
@@ -123,6 +137,60 @@ export default function SoundLibrary() {
     }, 3000);
   };
 
+  const saveRecording = async () => {
+    if (!audioBlob || !recordingName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a name for your recording",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log("Saving recorded audio:", recordingName);
+    
+    const formData = new FormData();
+    formData.append("audio", audioBlob, `${recordingName}.webm`);
+    formData.append("name", recordingName);
+    
+    // Get audio duration from the recorded blob
+    const audio = new Audio();
+    audio.src = audioUrl!;
+    
+    const handleMetadata = () => {
+      formData.append("duration", audio.duration.toString());
+      console.log("Recording duration:", audio.duration);
+      uploadMutation.mutate(formData);
+      
+      // Reset recording state
+      clearRecording();
+      setRecordingName("");
+      setShowRecordDialog(false);
+      URL.revokeObjectURL(audio.src);
+    };
+
+    const handleError = () => {
+      console.log("Could not load recording metadata, using default duration");
+      formData.append("duration", "0");
+      uploadMutation.mutate(formData);
+      
+      // Reset recording state
+      clearRecording();
+      setRecordingName("");
+      setShowRecordDialog(false);
+      URL.revokeObjectURL(audio.src);
+    };
+    
+    audio.addEventListener('loadedmetadata', handleMetadata);
+    audio.addEventListener('error', handleError);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const filteredSoundClips = soundClips.filter(clip =>
     clip.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -213,15 +281,97 @@ export default function SoundLibrary() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             Sound Library
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-primary hover:bg-primary-dark text-white"
-              size="sm"
-              disabled={uploadMutation.isPending}
-            >
-              <Upload className="h-4 w-4 mr-1" />
-              Upload
-            </Button>
+            <div className="flex space-x-2">
+              <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                    size="sm"
+                  >
+                    <Mic className="h-4 w-4 mr-1" />
+                    Record
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Record Audio</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="recordingName">Recording Name</Label>
+                      <Input
+                        id="recordingName"
+                        value={recordingName}
+                        onChange={(e) => setRecordingName(e.target.value)}
+                        placeholder="Enter a name for your recording..."
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div className="flex flex-col items-center space-y-4">
+                      {!isRecording && !audioBlob && (
+                        <Button
+                          onClick={startRecording}
+                          className="bg-red-500 hover:bg-red-600 text-white px-8 py-3 text-lg"
+                        >
+                          <Mic className="h-5 w-5 mr-2" />
+                          Start Recording
+                        </Button>
+                      )}
+
+                      {isRecording && (
+                        <div className="flex flex-col items-center space-y-2">
+                          <div className="text-lg font-mono text-red-500">
+                            {formatTime(recordingTime)}
+                          </div>
+                          <Button
+                            onClick={stopRecording}
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-3"
+                          >
+                            <Square className="h-5 w-5 mr-2" />
+                            Stop Recording
+                          </Button>
+                        </div>
+                      )}
+
+                      {audioBlob && audioUrl && (
+                        <div className="flex flex-col items-center space-y-2">
+                          <audio controls src={audioUrl} className="w-full" />
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={clearRecording}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Re-record
+                            </Button>
+                            <Button
+                              onClick={saveRecording}
+                              disabled={!recordingName.trim() || uploadMutation.isPending}
+                              className="bg-green-500 hover:bg-green-600 text-white"
+                              size="sm"
+                            >
+                              Save Recording
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-primary hover:bg-primary-dark text-white"
+                size="sm"
+                disabled={uploadMutation.isPending}
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                Upload
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
