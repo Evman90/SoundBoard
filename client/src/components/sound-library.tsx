@@ -158,8 +158,9 @@ export default function SoundLibrary() {
     audio.src = audioUrl!;
     
     const handleMetadata = () => {
-      formData.append("duration", audio.duration.toString());
-      console.log("Recording duration:", audio.duration);
+      const duration = isFinite(audio.duration) ? audio.duration : recordingTime;
+      formData.append("duration", duration.toString());
+      console.log("Recording duration:", duration);
       uploadMutation.mutate(formData);
       
       // Reset recording state
@@ -170,8 +171,8 @@ export default function SoundLibrary() {
     };
 
     const handleError = () => {
-      console.log("Could not load recording metadata, using default duration");
-      formData.append("duration", "0");
+      console.log("Could not load recording metadata, using recorded time");
+      formData.append("duration", recordingTime.toString());
       uploadMutation.mutate(formData);
       
       // Reset recording state

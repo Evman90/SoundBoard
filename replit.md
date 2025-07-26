@@ -14,6 +14,8 @@ Preferred communication style: Simple, everyday language.
 ✓ **Core Features Implemented** - Sound upload, trigger word management, real-time audio visualization
 ✓ **User Interface** - Modern responsive design with dark mode support
 ✓ **Browser Compatibility** - Web Speech API integration with Chrome/Edge support
+✓ **Multiple Default Responses** - Sequential cycling through multiple default response sounds
+✓ **Audio Recording Feature** - Direct browser-based recording with WebM support and real-time preview
 ✓ **Production Ready** - All essential features working and tested
 
 ## System Architecture

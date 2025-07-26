@@ -19,11 +19,20 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req: any, file: any, cb: any) => {
-    const allowedTypes = /\.(mp3|wav|ogg)$/i;
-    if (allowedTypes.test(file.originalname)) {
+    const allowedTypes = /\.(mp3|wav|ogg|webm)$/i;
+    const allowedMimeTypes = [
+      'audio/mpeg', 
+      'audio/wav', 
+      'audio/wave', 
+      'audio/x-wav', 
+      'audio/ogg', 
+      'audio/webm'
+    ];
+    
+    if (allowedTypes.test(file.originalname) || allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only MP3, WAV, and OGG files are allowed"));
+      cb(new Error("Only MP3, WAV, OGG, and WebM audio files are allowed"));
     }
   },
 });
@@ -55,8 +64,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No audio file provided" });
       }
 
-      const { originalname, filename, size } = req.file;
-      const format = path.extname(originalname).toLowerCase().substring(1);
+      const { originalname, filename, size, mimetype } = req.file;
+      let format = path.extname(originalname).toLowerCase().substring(1);
+      
+      // Handle WebM files that might not have proper extension
+      if (!format && mimetype === 'audio/webm') {
+        format = 'webm';
+      }
+      
       const name = req.body.name || path.basename(originalname, path.extname(originalname));
 
       // Get audio duration (simplified - in real app would use audio processing library)
