@@ -110,9 +110,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filePath = path.join(uploadDir, soundClip.filename);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
+        console.log(`Deleted file: ${filePath}`);
       }
 
       await storage.deleteSoundClip(id);
+      console.log(`Deleted sound clip from database: ${id}`);
       res.json({ message: "Sound clip deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete sound clip" });

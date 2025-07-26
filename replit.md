@@ -17,6 +17,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Multiple Default Responses** - Sequential cycling through multiple default response sounds
 ✓ **Audio Recording Feature** - Direct browser-based recording with WebM support and real-time preview
 ✓ **Mobile Voice Recognition Optimization** - Enhanced mobile support with haptic feedback and touch-optimized UI
+✓ **Persistent Local Storage** - PostgreSQL database stores user data permanently (sound clips, trigger words, settings)
 ✓ **Production Ready** - All essential features working and tested
 
 ## System Architecture
@@ -64,11 +65,11 @@ Preferred communication style: Simple, everyday language.
 - **Flexible Matching**: Optional case-sensitive matching
 - **Enable/Disable**: Toggle individual triggers without deletion
 
-### Storage Abstraction
-- **Interface-based Design**: IStorage interface for multiple storage backends
-- **In-Memory Implementation**: MemStorage for development/testing
-- **Database Ready**: Structured for easy database integration
-- **CRUD Operations**: Full create, read, update, delete functionality
+### Storage System
+- **Database Storage**: PostgreSQL database for persistent data storage
+- **File Storage**: Local filesystem storage for audio files in uploads directory
+- **Interface-based Design**: IStorage interface supporting multiple storage backends
+- **CRUD Operations**: Full create, read, update, delete functionality with data persistence
 
 ## Data Flow
 
