@@ -12,8 +12,10 @@ interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
+  maxAlternatives?: number;
   start(): void;
   stop(): void;
+  onstart?: () => void;
   onresult: (event: SpeechRecognitionEvent) => void;
   onerror: (event: any) => void;
   onend: () => void;
@@ -335,38 +337,74 @@ export function useVoiceRecognition() {
 
       recognition.onend = () => {
         console.log("Speech recognition ended");
-        if (isListening) {
-          console.log("Restarting speech recognition...");
+        
+        // Only restart if we're still supposed to be listening and haven't been manually stopped
+        if (isListening && recognitionRef.current === recognition) {
+          console.log("Automatically restarting speech recognition to maintain continuous listening...");
           
           // Different restart strategies for mobile vs desktop
           const restartDelay = isMobile ? 1000 : 500; // Longer delay on mobile
           
           setTimeout(() => {
-            try {
-              if (isListening && recognitionRef.current) {
-                recognition.start();
-              }
-            } catch (e) {
-              console.error("Failed to restart recognition:", e);
-              
-              // Mobile fallback: longer wait and simplified retry
-              const fallbackDelay = isMobile ? 2000 : 1000;
-              setTimeout(() => {
-                if (isListening) {
-                  try {
-                    recognition.start();
-                  } catch (e2) {
-                    console.error("Failed to restart recognition after retry:", e2);
-                    setErrorMessage(isMobile 
-                      ? "Speech recognition stopped. Tap Stop and Start again if needed." 
-                      : "Speech recognition stopped unexpectedly. Click Stop and Start again."
-                    );
-                    setIsListening(false);
-                  }
+            // Double-check we should still be listening
+            if (isListening && recognitionRef.current === recognition) {
+              try {
+                // Create new recognition instance to avoid any state issues
+                const newRecognition = new SpeechRecognition();
+                newRecognition.continuous = !isMobile;
+                newRecognition.interimResults = true;
+                newRecognition.lang = "en-US";
+                
+                if (isAndroid) {
+                  newRecognition.maxAlternatives = 1;
                 }
-              }, fallbackDelay);
+                
+                // Copy all the event handlers
+                newRecognition.onstart = recognition.onstart;
+                newRecognition.onresult = recognition.onresult;
+                newRecognition.onerror = recognition.onerror;
+                newRecognition.onend = recognition.onend;
+                
+                newRecognition.start();
+                recognitionRef.current = newRecognition;
+                console.log("Successfully restarted speech recognition");
+              } catch (e) {
+                console.error("Failed to restart recognition:", e);
+                
+                // Fallback retry with longer delay
+                const fallbackDelay = isMobile ? 3000 : 2000;
+                setTimeout(() => {
+                  if (isListening && recognitionRef.current === recognition) {
+                    try {
+                      const fallbackRecognition = new SpeechRecognition();
+                      fallbackRecognition.continuous = !isMobile;
+                      fallbackRecognition.interimResults = true;
+                      fallbackRecognition.lang = "en-US";
+                      
+                      // Copy handlers again
+                      fallbackRecognition.onstart = recognition.onstart;
+                      fallbackRecognition.onresult = recognition.onresult;
+                      fallbackRecognition.onerror = recognition.onerror;
+                      fallbackRecognition.onend = recognition.onend;
+                      
+                      fallbackRecognition.start();
+                      recognitionRef.current = fallbackRecognition;
+                      console.log("Fallback restart successful");
+                    } catch (e2) {
+                      console.error("Failed fallback restart:", e2);
+                      setErrorMessage(isMobile 
+                        ? "Voice recognition stopped automatically. Tap Stop and Start again." 
+                        : "Voice recognition stopped. Click Stop and Start again to continue."
+                      );
+                      setIsListening(false);
+                    }
+                  }
+                }, fallbackDelay);
+              }
             }
           }, restartDelay);
+        } else {
+          console.log("Speech recognition ended - not restarting (manually stopped or different instance)");
         }
       };
 
