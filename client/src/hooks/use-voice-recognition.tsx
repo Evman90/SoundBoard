@@ -37,6 +37,12 @@ export function useVoiceRecognition() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const triggerCooldownRef = useRef<Set<string>>(new Set());
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const conversationRecordingRef = useRef<{
+    isRecording: boolean;
+    chunks: Blob[];
+    startTime: number;
+  }>({ isRecording: false, chunks: [], startTime: 0 });
   const { playSound } = useAudioPlayer();
 
   const { data: triggerWords = [] } = useQuery<TriggerWord[]>({
@@ -427,6 +433,77 @@ export function useVoiceRecognition() {
     setTranscript("");
   }, []);
 
+  // Conversation recording functions
+  const startConversationRecording = useCallback(() => {
+    if (!streamRef.current) {
+      console.error("No audio stream available for recording");
+      return false;
+    }
+
+    try {
+      console.log("🎙️ Starting conversation recording using voice recognition stream...");
+      
+      const mediaRecorder = new MediaRecorder(streamRef.current, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+          ? 'audio/webm;codecs=opus' 
+          : 'audio/webm',
+      });
+      
+      conversationRecordingRef.current = {
+        isRecording: true,
+        chunks: [],
+        startTime: Date.now()
+      };
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          conversationRecordingRef.current.chunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorderRef.current = mediaRecorder;
+      
+      console.log("🎙️ Conversation recording started successfully");
+      return true;
+    } catch (error) {
+      console.error("Failed to start conversation recording:", error);
+      return false;
+    }
+  }, []);
+
+  const stopConversationRecording = useCallback(() => {
+    if (!mediaRecorderRef.current || !conversationRecordingRef.current.isRecording) {
+      return null;
+    }
+
+    return new Promise<Blob>((resolve) => {
+      const mediaRecorder = mediaRecorderRef.current!;
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(conversationRecordingRef.current.chunks, { type: 'audio/webm' });
+        conversationRecordingRef.current.isRecording = false;
+        conversationRecordingRef.current.chunks = [];
+        console.log("🎙️ Conversation recording stopped, audio blob created");
+        resolve(blob);
+      };
+
+      mediaRecorder.stop();
+      mediaRecorderRef.current = null;
+    });
+  }, []);
+
+  const getConversationRecordingStatus = useCallback(() => {
+    if (!conversationRecordingRef.current.isRecording) {
+      return { isRecording: false, duration: 0, size: 0 };
+    }
+
+    const duration = Math.floor((Date.now() - conversationRecordingRef.current.startTime) / 1000);
+    const size = conversationRecordingRef.current.chunks.reduce((total, chunk) => total + chunk.size, 0);
+    
+    return { isRecording: true, duration, size };
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -443,5 +520,9 @@ export function useVoiceRecognition() {
     startListening,
     stopListening,
     clearTranscript,
+    // Conversation recording functions
+    startConversationRecording,
+    stopConversationRecording,
+    getConversationRecordingStatus
   };
 }

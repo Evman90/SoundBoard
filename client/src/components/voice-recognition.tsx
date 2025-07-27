@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Mic, MicOff, Trash2, Smartphone, Video, Square, RotateCcw } from "lucide-react";
 import { useVoiceRecognition } from "@/hooks/use-voice-recognition";
-import { useConversationRecorder } from "@/hooks/use-conversation-recorder";
+
 import AudioVisualizer from "@/components/audio-visualizer";
 import type { Settings } from "@shared/schema";
 
@@ -22,40 +24,71 @@ export default function VoiceRecognition() {
     clearTranscript,
     isSupported,
     audioLevel,
-    errorMessage
+    errorMessage,
+    startConversationRecording,
+    stopConversationRecording,
+    getConversationRecordingStatus
   } = useVoiceRecognition();
 
   const [status, setStatus] = useState("Ready to Listen");
   const [isMobile, setIsMobile] = useState(false);
   const [recordingName, setRecordingName] = useState("");
   const [showRecordDialog, setShowRecordDialog] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   // Get settings to check if conversation recording is enabled
   const { data: settings } = useQuery<Settings>({
     queryKey: ["/api/settings"],
   });
 
-  const {
-    isRecording,
-    recordingTime,
-    audioBlob,
-    audioUrl,
-    currentSize,
-    startRecording,
-    stopRecording,
-    clearRecording,
-    saveRecording,
-    formatSize,
-    getSizePercentage,
-    maxSizeBytes,
-    isUploading,
-  } = useConversationRecorder({
-    onRecordingSaved: () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const uploadMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      return await apiRequest("/api/conversation-recordings", {
+        method: "POST",
+        body: formData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversation-recordings"] });
+      toast({
+        title: "Success",
+        description: "Conversation recording saved successfully",
+      });
       clearRecording();
       setRecordingName("");
       setShowRecordDialog(false);
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save conversation recording",
+        variant: "destructive",
+      });
+    },
   });
+
+  // Get current recording status with real-time updates
+  const [recordingStatus, setRecordingStatus] = useState({ isRecording: false, duration: 0, size: 0 });
+  const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+
+  // Update recording status every second when recording
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (getConversationRecordingStatus().isRecording) {
+      interval = setInterval(() => {
+        setRecordingStatus(getConversationRecordingStatus());
+      }, 1000);
+    } else {
+      setRecordingStatus(getConversationRecordingStatus());
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [getConversationRecordingStatus]);
 
   // Detect mobile device
   useEffect(() => {
@@ -90,17 +123,58 @@ export default function VoiceRecognition() {
     }
   };
 
+  const handleStartRecording = () => {
+    const success = startConversationRecording();
+    if (success) {
+      setShowRecordDialog(false);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    const blob = await stopConversationRecording();
+    if (blob) {
+      setAudioBlob(blob);
+      setAudioUrl(URL.createObjectURL(blob));
+    }
+  };
+
+  const clearRecording = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioBlob(null);
+    setAudioUrl(null);
+  };
+
   const handleSaveRecording = () => {
-    if (!recordingName.trim()) {
+    if (!recordingName.trim() || !audioBlob) {
       return;
     }
-    saveRecording(recordingName);
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, `${recordingName}.webm`);
+    formData.append('name', recordingName);
+    formData.append('duration', recordingStatus.duration.toString());
+
+    uploadMutation.mutate(formData);
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getSizePercentage = () => {
+    return (recordingStatus.size / maxSizeBytes) * 100;
   };
 
   if (!isSupported) {
@@ -196,18 +270,18 @@ export default function VoiceRecognition() {
                 <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
                   Conversation Recording
                 </span>
-                {isRecording && (
+                {recordingStatus.isRecording && (
                   <Badge variant="destructive" className="text-xs">
-                    REC {formatTime(recordingTime)}
+                    REC {formatTime(recordingStatus.duration)}
                   </Badge>
                 )}
               </div>
               <div className="text-xs text-blue-600 dark:text-blue-400">
-                {formatSize(currentSize)} / {formatSize(maxSizeBytes)}
+                {formatSize(recordingStatus.size)} / {formatSize(maxSizeBytes)}
               </div>
             </div>
             
-            {!isRecording && !audioBlob && (
+            {!recordingStatus.isRecording && !audioBlob && (
               <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
                 <DialogTrigger asChild>
                   <Button 
@@ -234,10 +308,7 @@ export default function VoiceRecognition() {
                       />
                     </div>
                     <Button
-                      onClick={() => {
-                        startRecording();
-                        setShowRecordDialog(false);
-                      }}
+                      onClick={handleStartRecording}
                       className="bg-red-500 hover:bg-red-600 text-white w-full"
                       disabled={!recordingName.trim()}
                     >
@@ -249,11 +320,11 @@ export default function VoiceRecognition() {
               </Dialog>
             )}
 
-            {isRecording && (
+            {recordingStatus.isRecording && (
               <div className="space-y-2">
                 <Progress value={getSizePercentage()} className="h-2" />
                 <Button
-                  onClick={stopRecording}
+                  onClick={handleStopRecording}
                   size="sm"
                   className="bg-gray-500 hover:bg-gray-600 text-white w-full"
                 >
@@ -267,7 +338,7 @@ export default function VoiceRecognition() {
               <div className="space-y-3">
                 <audio controls src={audioUrl} className="w-full" />
                 <div className="text-xs text-gray-500 text-center">
-                  Duration: {formatTime(recordingTime)} • Size: {formatSize(currentSize)}
+                  Duration: {formatTime(recordingStatus.duration)} • Size: {formatSize(recordingStatus.size)}
                 </div>
                 <div className="flex space-x-2">
                   <Button
@@ -281,7 +352,7 @@ export default function VoiceRecognition() {
                   </Button>
                   <Button
                     onClick={handleSaveRecording}
-                    disabled={!recordingName.trim() || isUploading}
+                    disabled={!recordingName.trim() || uploadMutation.isPending}
                     className="bg-green-500 hover:bg-green-600 text-white flex-1"
                     size="sm"
                   >
