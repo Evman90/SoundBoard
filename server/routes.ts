@@ -136,14 +136,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create trigger word
   app.post("/api/trigger-words", async (req, res) => {
     try {
+      console.log("Trigger word creation request body:", req.body);
+      console.log("insertTriggerWordSchema:", insertTriggerWordSchema);
+      
       const validatedData = insertTriggerWordSchema.parse(req.body);
+      console.log("Validated data:", validatedData);
+      
       const triggerWord = await storage.createTriggerWord(validatedData);
+      console.log("Created trigger word:", triggerWord);
+      
       res.status(201).json(triggerWord);
     } catch (error) {
       console.error("Error creating trigger word:", error);
       console.error("Request body:", req.body);
-      console.error("Validation error:", error);
-      res.status(400).json({ message: "Failed to create trigger word", error: error.message });
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      res.status(400).json({ message: "Failed to create trigger word", error: error.message || String(error) });
     }
   });
 
