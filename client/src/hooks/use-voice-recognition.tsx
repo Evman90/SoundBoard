@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAudioPlayer } from "./use-audio-player";
-import type { TriggerWord, SoundClip } from "@shared/schema";
+import type { TriggerWord, SoundClip, Settings } from "@shared/schema";
 
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;

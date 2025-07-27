@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, MicOff, Trash2, Smartphone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Mic, MicOff, Trash2, Smartphone, Video, Square, RotateCcw } from "lucide-react";
 import { useVoiceRecognition } from "@/hooks/use-voice-recognition";
+import { useConversationRecorder } from "@/hooks/use-conversation-recorder";
 import AudioVisualizer from "@/components/audio-visualizer";
+import type { Settings } from "@shared/schema";
 
 export default function VoiceRecognition() {
   const {
@@ -19,6 +27,35 @@ export default function VoiceRecognition() {
 
   const [status, setStatus] = useState("Ready to Listen");
   const [isMobile, setIsMobile] = useState(false);
+  const [recordingName, setRecordingName] = useState("");
+  const [showRecordDialog, setShowRecordDialog] = useState(false);
+
+  // Get settings to check if conversation recording is enabled
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["/api/settings"],
+  });
+
+  const {
+    isRecording,
+    recordingTime,
+    audioBlob,
+    audioUrl,
+    currentSize,
+    startRecording,
+    stopRecording,
+    clearRecording,
+    saveRecording,
+    formatSize,
+    getSizePercentage,
+    maxSizeBytes,
+    isUploading,
+  } = useConversationRecorder({
+    onRecordingSaved: () => {
+      clearRecording();
+      setRecordingName("");
+      setShowRecordDialog(false);
+    },
+  });
 
   // Detect mobile device
   useEffect(() => {
@@ -51,6 +88,19 @@ export default function VoiceRecognition() {
         }
       }
     }
+  };
+
+  const handleSaveRecording = () => {
+    if (!recordingName.trim()) {
+      return;
+    }
+    saveRecording(recordingName);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!isSupported) {
@@ -132,6 +182,112 @@ export default function VoiceRecognition() {
                 <p>• Upload audio files from your device</p>
                 <p>• Voice recognition works perfectly on desktop Chrome/Edge</p>
                 <p>• All other features work normally on mobile</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Conversation Recording Controls */}
+        {settings?.conversationRecordingEnabled && (
+          <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <Video className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Conversation Recording
+                </span>
+                {isRecording && (
+                  <Badge variant="destructive" className="text-xs">
+                    REC {formatTime(recordingTime)}
+                  </Badge>
+                )}
+              </div>
+              <div className="text-xs text-blue-600 dark:text-blue-400">
+                {formatSize(currentSize)} / {formatSize(maxSizeBytes)}
+              </div>
+            </div>
+            
+            {!isRecording && !audioBlob && (
+              <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
+                <DialogTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    className="bg-red-500 hover:bg-red-600 text-white w-full"
+                  >
+                    <Video className="h-4 w-4 mr-2" />
+                    Start Conversation Recording
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Record Conversation</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="recordingName">Recording Name</Label>
+                      <Input
+                        id="recordingName"
+                        value={recordingName}
+                        onChange={(e) => setRecordingName(e.target.value)}
+                        placeholder="Enter a name for your recording..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button
+                      onClick={() => {
+                        startRecording();
+                        setShowRecordDialog(false);
+                      }}
+                      className="bg-red-500 hover:bg-red-600 text-white w-full"
+                      disabled={!recordingName.trim()}
+                    >
+                      <Video className="h-4 w-4 mr-2" />
+                      Start Recording
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {isRecording && (
+              <div className="space-y-2">
+                <Progress value={getSizePercentage()} className="h-2" />
+                <Button
+                  onClick={stopRecording}
+                  size="sm"
+                  className="bg-gray-500 hover:bg-gray-600 text-white w-full"
+                >
+                  <Square className="h-4 w-4 mr-2" />
+                  Stop Recording
+                </Button>
+              </div>
+            )}
+
+            {audioBlob && audioUrl && (
+              <div className="space-y-3">
+                <audio controls src={audioUrl} className="w-full" />
+                <div className="text-xs text-gray-500 text-center">
+                  Duration: {formatTime(recordingTime)} • Size: {formatSize(currentSize)}
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={clearRecording}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Re-record
+                  </Button>
+                  <Button
+                    onClick={handleSaveRecording}
+                    disabled={!recordingName.trim() || isUploading}
+                    className="bg-green-500 hover:bg-green-600 text-white flex-1"
+                    size="sm"
+                  >
+                    Save Recording
+                  </Button>
+                </div>
               </div>
             )}
           </div>
