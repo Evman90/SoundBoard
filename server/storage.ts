@@ -51,15 +51,13 @@ export class MemStorage implements IStorage {
     this.triggerWords = new Map();
     this.settings = {
       id: 1,
-      defaultResponseEnabled: false,
+      defaultResponseEnabled: true,
       defaultResponseSoundClipIds: [],
       defaultResponseDelay: 2000,
       defaultResponseIndex: 0,
-      conversationRecordingEnabled: false,
     };
     this.currentSoundClipId = 1;
     this.currentTriggerWordId = 1;
-    this.currentConversationRecordingId = 1;
     
     // Ensure server profiles directory exists
     const serverProfilesDir = path.join(process.cwd(), "server-profiles");
@@ -84,6 +82,13 @@ export class MemStorage implements IStorage {
       isDefault: true // All new clips start as default clips
     };
     this.soundClips.set(id, soundClip);
+    
+    // Automatically add to default response list when default responses are enabled
+    if (this.settings.defaultResponseEnabled) {
+      this.settings.defaultResponseSoundClipIds.push(id);
+      console.log(`Added sound clip ${soundClip.name} (ID: ${id}) to default responses`);
+    }
+    
     console.log(`Created sound clip: ${soundClip.name} (ID: ${id}) - Default: true`);
     return soundClip;
   }

@@ -24,7 +24,7 @@ export const triggerWords = pgTable("trigger_words", {
 
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
-  defaultResponseEnabled: boolean("default_response_enabled").default(false),
+  defaultResponseEnabled: boolean("default_response_enabled").default(true),
   defaultResponseSoundClipIds: integer("default_response_sound_clip_ids").array().default([]),
   defaultResponseDelay: integer("default_response_delay").default(2000), // milliseconds
   defaultResponseIndex: integer("default_response_index").default(0),
