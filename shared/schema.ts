@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, real, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -28,6 +28,18 @@ export const settings = pgTable("settings", {
   defaultResponseSoundClipIds: integer("default_response_sound_clip_ids").array().default([]),
   defaultResponseDelay: integer("default_response_delay").default(2000), // milliseconds
   defaultResponseIndex: integer("default_response_index").default(0),
+  conversationRecordingEnabled: boolean("conversation_recording_enabled").default(false),
+});
+
+export const conversationRecordings = pgTable("conversation_recordings", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  size: integer("size").notNull(),
+  duration: real("duration").notNull(),
+  format: text("format").notNull(),
+  url: text("url").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertSoundClipSchema = createInsertSchema(soundClips).omit({
@@ -43,12 +55,19 @@ export const insertSettingsSchema = createInsertSchema(settings).omit({
   id: true,
 });
 
+export const insertConversationRecordingSchema = createInsertSchema(conversationRecordings).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertSoundClip = z.infer<typeof insertSoundClipSchema>;
 export type SoundClip = typeof soundClips.$inferSelect;
 export type InsertTriggerWord = z.infer<typeof insertTriggerWordSchema>;
 export type TriggerWord = typeof triggerWords.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
+export type InsertConversationRecording = z.infer<typeof insertConversationRecordingSchema>;
+export type ConversationRecording = typeof conversationRecordings.$inferSelect;
 
 // Profile export/import schemas
 export const profileSchema = z.object({
