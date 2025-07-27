@@ -30,8 +30,12 @@ export default function TriggerWords() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { phrase: string; soundClipId: number; caseSensitive: boolean }) => {
-      const response = await apiRequest("POST", "/api/trigger-words", data);
+    mutationFn: async (data: { phrase: string; soundClipIds: number[]; caseSensitive: boolean; enabled: boolean }) => {
+      const response = await apiRequest("/api/trigger-words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -54,7 +58,11 @@ export default function TriggerWords() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<TriggerWord> }) => {
-      const response = await apiRequest("PATCH", `/api/trigger-words/${id}`, data);
+      const response = await apiRequest(`/api/trigger-words/${id}`, {
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -117,7 +125,7 @@ export default function TriggerWords() {
 
     const data = {
       phrase: phrase.trim(),
-      soundClipId: parseInt(selectedSoundId),
+      soundClipIds: [parseInt(selectedSoundId)], // Convert to array format expected by schema
       caseSensitive,
       enabled: true,
     };
@@ -132,18 +140,22 @@ export default function TriggerWords() {
   const handleEdit = (trigger: TriggerWord) => {
     setEditingTrigger(trigger);
     setPhrase(trigger.phrase);
-    setSelectedSoundId(trigger.soundClipId.toString());
+    // Use first sound clip ID from the array for editing
+    setSelectedSoundId(trigger.soundClipIds?.[0]?.toString() || "");
     setCaseSensitive(trigger.caseSensitive || false);
     setIsDialogOpen(true);
   };
 
-  const getSoundClipName = (soundClipId: number) => {
-    const clip = soundClips.find(c => c.id === soundClipId);
-    return clip ? clip.name : "Unknown Sound";
+  const getSoundClipName = (soundClipIds: number[]) => {
+    if (!soundClipIds || soundClipIds.length === 0) return "No sound assigned";
+    const clip = soundClips.find(c => c.id === soundClipIds[0]);
+    const name = clip ? clip.name : "Unknown Sound";
+    return soundClipIds.length > 1 ? `${name} (+${soundClipIds.length - 1} more)` : name;
   };
 
-  const testSound = (soundClipId: number) => {
-    const clip = soundClips.find(c => c.id === soundClipId);
+  const testSound = (soundClipIds: number[]) => {
+    if (!soundClipIds || soundClipIds.length === 0) return;
+    const clip = soundClips.find(c => c.id === soundClipIds[0]);
     if (clip) {
       console.log("🔊 Testing sound:", clip.name, clip.url);
       const audio = new Audio(clip.url);
@@ -264,7 +276,7 @@ export default function TriggerWords() {
                   </span>
                   <ArrowRight className="h-4 w-4 text-gray-400" />
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {getSoundClipName(trigger.soundClipId)}
+                    {getSoundClipName(trigger.soundClipIds)}
                   </span>
                   {trigger.caseSensitive && (
                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -276,7 +288,7 @@ export default function TriggerWords() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => testSound(trigger.soundClipId)}
+                    onClick={() => testSound(trigger.soundClipIds)}
                     className="text-gray-500 hover:text-green-500"
                     title="Test sound"
                   >
