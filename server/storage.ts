@@ -74,8 +74,13 @@ export class MemStorage implements IStorage {
 
   async createSoundClip(insertSoundClip: InsertSoundClip): Promise<SoundClip> {
     const id = this.currentSoundClipId++;
-    const soundClip: SoundClip = { ...insertSoundClip, id };
+    const soundClip: SoundClip = { 
+      ...insertSoundClip, 
+      id,
+      isDefault: true // All new clips start as default clips
+    };
     this.soundClips.set(id, soundClip);
+    console.log(`Created sound clip: ${soundClip.name} (ID: ${id}) - Default: true`);
     return soundClip;
   }
 
@@ -87,6 +92,7 @@ export class MemStorage implements IStorage {
       if (updatedIds.length === 0) {
         // Delete trigger word if no sound clips left
         this.triggerWords.delete(triggerId);
+        console.log(`Deleted trigger word ${triggerWord.phrase} (no sound clips remaining)`);
       } else if (updatedIds.length !== triggerWord.soundClipIds.length) {
         // Update trigger word with remaining sound clips
         const updatedTrigger = {
@@ -95,7 +101,14 @@ export class MemStorage implements IStorage {
           currentIndex: Math.min(triggerWord.currentIndex, updatedIds.length - 1)
         };
         this.triggerWords.set(triggerId, updatedTrigger);
+        console.log(`Updated trigger word ${triggerWord.phrase} (removed deleted sound clip)`);
       }
+    }
+    
+    // Remove from default response sound clips if present
+    if (this.settings.defaultResponseSoundClipIds.includes(id)) {
+      this.settings.defaultResponseSoundClipIds = this.settings.defaultResponseSoundClipIds.filter(clipId => clipId !== id);
+      console.log(`Removed deleted sound clip from default responses`);
     }
   }
 
@@ -118,6 +131,16 @@ export class MemStorage implements IStorage {
       soundClipIds: insertTriggerWord.soundClipIds || []
     };
     this.triggerWords.set(id, triggerWord);
+    
+    // Mark assigned sound clips as non-default
+    for (const clipId of insertTriggerWord.soundClipIds || []) {
+      const soundClip = this.soundClips.get(clipId);
+      if (soundClip) {
+        this.soundClips.set(clipId, { ...soundClip, isDefault: false });
+        console.log(`Marked sound clip ${soundClip.name} as non-default (assigned to trigger)`);
+      }
+    }
+    
     return triggerWord;
   }
 
@@ -125,19 +148,74 @@ export class MemStorage implements IStorage {
     const existing = this.triggerWords.get(id);
     if (!existing) return undefined;
     
+    const oldSoundClipIds = existing.soundClipIds || [];
+    const newSoundClipIds = updates.soundClipIds ?? existing.soundClipIds;
+    
     const updated: TriggerWord = { 
       ...existing, 
       ...updates,
       enabled: updates.enabled ?? existing.enabled,
       caseSensitive: updates.caseSensitive ?? existing.caseSensitive,
-      soundClipIds: updates.soundClipIds ?? existing.soundClipIds,
+      soundClipIds: newSoundClipIds,
       currentIndex: existing.currentIndex
     };
     this.triggerWords.set(id, updated);
+    
+    // Handle sound clip default status changes
+    if (updates.soundClipIds) {
+      // Mark new clips as non-default
+      for (const clipId of newSoundClipIds) {
+        if (!oldSoundClipIds.includes(clipId)) {
+          const soundClip = this.soundClips.get(clipId);
+          if (soundClip) {
+            this.soundClips.set(clipId, { ...soundClip, isDefault: false });
+            console.log(`Marked sound clip ${soundClip.name} as non-default (assigned to trigger)`);
+          }
+        }
+      }
+      
+      // Check if removed clips should return to default status
+      for (const clipId of oldSoundClipIds) {
+        if (!newSoundClipIds.includes(clipId)) {
+          // Check if this clip is used in any other trigger
+          const isUsedElsewhere = Array.from(this.triggerWords.values()).some(trigger => 
+            trigger.id !== id && trigger.soundClipIds.includes(clipId)
+          );
+          
+          if (!isUsedElsewhere) {
+            const soundClip = this.soundClips.get(clipId);
+            if (soundClip) {
+              this.soundClips.set(clipId, { ...soundClip, isDefault: true });
+              console.log(`Marked sound clip ${soundClip.name} as default (no longer assigned to any trigger)`);
+            }
+          }
+        }
+      }
+    }
+    
     return updated;
   }
 
   async deleteTriggerWord(id: number): Promise<void> {
+    const triggerWord = this.triggerWords.get(id);
+    if (triggerWord) {
+      // Check if any sound clips should return to default status
+      for (const clipId of triggerWord.soundClipIds) {
+        // Check if this clip is used in any other trigger
+        const isUsedElsewhere = Array.from(this.triggerWords.values()).some(trigger => 
+          trigger.id !== id && trigger.soundClipIds.includes(clipId)
+        );
+        
+        if (!isUsedElsewhere) {
+          const soundClip = this.soundClips.get(clipId);
+          if (soundClip) {
+            this.soundClips.set(clipId, { ...soundClip, isDefault: true });
+            console.log(`Marked sound clip ${soundClip.name} as default (trigger deleted)`);
+          }
+        }
+      }
+    }
+    
     this.triggerWords.delete(id);
   }
 

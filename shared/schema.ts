@@ -10,6 +10,7 @@ export const soundClips = pgTable("sound_clips", {
   duration: real("duration").notNull(),
   size: integer("size").notNull(),
   url: text("url").notNull(),
+  isDefault: boolean("is_default").default(true).notNull(), // All clips start as default clips
 });
 
 export const triggerWords = pgTable("trigger_words", {
@@ -31,6 +32,7 @@ export const settings = pgTable("settings", {
 
 export const insertSoundClipSchema = createInsertSchema(soundClips).omit({
   id: true,
+  isDefault: true, // Auto-managed, starts as true for all new clips
 });
 
 export const insertTriggerWordSchema = createInsertSchema(triggerWords).omit({

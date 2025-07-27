@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -422,9 +423,20 @@ export default function SoundLibrary() {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm">
-                      {clip.name}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                        {clip.name}
+                      </h4>
+                      {clip.isDefault ? (
+                        <Badge variant="outline" className="text-xs px-2 py-0.5 text-blue-600 border-blue-300 bg-blue-50 dark:text-blue-400 dark:border-blue-600 dark:bg-blue-900/20">
+                          Default
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs px-2 py-0.5 text-green-600 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-600 dark:bg-green-900/20">
+                          Assigned
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center space-x-1">
                       {currentlyPlaying === clip.id ? (
                         <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
