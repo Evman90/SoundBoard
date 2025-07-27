@@ -22,6 +22,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Server Profile Storage** - Cloud backup with 10MB limit and custom filenames for cross-device access
 ✓ **Production Ready** - All essential features working and tested
 ✓ **Default Clip Auto-Play** - Default clips automatically play when voice is detected but no trigger words match
+✓ **Conversation Recording** - Record entire conversations between user and soundboard up to 10MB with download capability
 
 ## System Architecture
 

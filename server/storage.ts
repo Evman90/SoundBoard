@@ -1,4 +1,4 @@
-import { soundClips, triggerWords, settings, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord, type Settings, type InsertSettings } from "@shared/schema";
+import { soundClips, triggerWords, settings, conversationRecordings, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord, type Settings, type InsertSettings, type ConversationRecording, type InsertConversationRecording } from "@shared/schema";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
@@ -35,27 +35,37 @@ export interface IStorage {
   getServerProfiles(): Promise<string[]>;
   loadProfileFromServer(filename: string): Promise<any>;
   deleteServerProfile(filename: string): Promise<void>;
+
+  // Conversation recording methods
+  getConversationRecordings(): Promise<ConversationRecording[]>;
+  createConversationRecording(recording: InsertConversationRecording): Promise<ConversationRecording>;
+  deleteConversationRecording(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
   private soundClips: Map<number, SoundClip>;
   private triggerWords: Map<number, TriggerWord>;
   private settings: Settings;
+  private conversationRecordings: Map<number, ConversationRecording>;
   private currentSoundClipId: number;
   private currentTriggerWordId: number;
+  private currentConversationRecordingId: number;
 
   constructor() {
     this.soundClips = new Map();
     this.triggerWords = new Map();
+    this.conversationRecordings = new Map();
     this.settings = {
       id: 1,
       defaultResponseEnabled: false,
       defaultResponseSoundClipIds: [],
       defaultResponseDelay: 2000,
       defaultResponseIndex: 0,
+      conversationRecordingEnabled: false,
     };
     this.currentSoundClipId = 1;
     this.currentTriggerWordId = 1;
+    this.currentConversationRecordingId = 1;
     
     // Ensure server profiles directory exists
     const serverProfilesDir = path.join(process.cwd(), "server-profiles");
@@ -415,13 +425,51 @@ export class MemStorage implements IStorage {
     // Clear all in-memory data
     this.soundClips.clear();
     this.triggerWords.clear();
+    this.conversationRecordings.clear();
+    this.currentConversationRecordingId = 1;
     this.settings = {
       id: 1,
       defaultResponseEnabled: false,
       defaultResponseSoundClipIds: [],
       defaultResponseDelay: 2000,
       defaultResponseIndex: 0,
+      conversationRecordingEnabled: false,
     };
+  }
+
+  // Conversation recording methods
+  async getConversationRecordings(): Promise<ConversationRecording[]> {
+    return Array.from(this.conversationRecordings.values()).sort((a, b) => 
+      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    );
+  }
+
+  async createConversationRecording(insertRecording: InsertConversationRecording): Promise<ConversationRecording> {
+    const id = this.currentConversationRecordingId++;
+    const recording: ConversationRecording = {
+      ...insertRecording,
+      id,
+      createdAt: new Date(),
+    };
+    this.conversationRecordings.set(id, recording);
+    console.log(`Created conversation recording: ${recording.originalName} (ID: ${id})`);
+    return recording;
+  }
+
+  async deleteConversationRecording(id: number): Promise<void> {
+    const recording = this.conversationRecordings.get(id);
+    if (recording) {
+      // Delete the file from uploads directory
+      try {
+        const filePath = path.join(process.cwd(), "uploads", recording.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (error) {
+        console.warn(`Could not delete recording file ${recording.filename}:`, error);
+      }
+      this.conversationRecordings.delete(id);
+    }
   }
 
   async saveProfileToServer(profileData: any, filename: string): Promise<void> {
