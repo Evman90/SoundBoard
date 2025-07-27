@@ -23,6 +23,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Production Ready** - All essential features working and tested
 ✓ **Default Clip Auto-Play** - Default clips automatically play when voice is detected but no trigger words match
 ✓ **Conversation Recording Removed** - Removed conversation recording feature due to browser microphone access limitations that prevent simultaneous voice recognition and recording
+✓ **Streamlined Interface** - Integrated trigger word management directly into sound library with per-clip trigger assignment and deletion
 
 
 ## System Architecture

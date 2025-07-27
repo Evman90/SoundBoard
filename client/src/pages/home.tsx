@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Settings, Moon } from "lucide-react";
 import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
-import TriggerWords from "@/components/trigger-words";
-import ConversationRecorder from "@/components/conversation-recorder";
+
+
 import { SessionWarning } from "@/components/session-warning";
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState("soundboard");
+
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -61,48 +61,15 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <SessionWarning />
         
-        {/* Tab Navigation */}
-        <div className="mb-8">
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab("soundboard")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "soundboard"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
-              >
-                Soundboard
-              </button>
-              <button
-                onClick={() => setActiveTab("recordings")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "recordings"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
-              >
-                Conversation Recording
-              </button>
-            </nav>
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <VoiceRecognition />
+          </div>
+          <div>
+            <SoundLibrary />
           </div>
         </div>
-
-        {/* Tab Content */}
-        {activeTab === "soundboard" ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <VoiceRecognition />
-              <TriggerWords />
-            </div>
-            <div>
-              <SoundLibrary />
-            </div>
-          </div>
-        ) : (
-          <ConversationRecorder />
-        )}
       </div>
     </div>
   );

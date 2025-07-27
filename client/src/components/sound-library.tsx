@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw } from "lucide-react";
+import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw, Zap, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
-import type { SoundClip } from "@shared/schema";
+import type { SoundClip, TriggerWord } from "@shared/schema";
 
 export default function SoundLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,6 +19,9 @@ export default function SoundLibrary() {
   const [micSensitivity, setMicSensitivity] = useState(50);
   const [recordingName, setRecordingName] = useState("");
   const [showRecordDialog, setShowRecordDialog] = useState(false);
+  const [selectedSoundForTrigger, setSelectedSoundForTrigger] = useState<SoundClip | null>(null);
+  const [triggerPhrase, setTriggerPhrase] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -35,6 +38,10 @@ export default function SoundLibrary() {
 
   const { data: soundClips = [], isLoading } = useQuery<SoundClip[]>({
     queryKey: ["/api/sound-clips"],
+  });
+
+  const { data: triggerWords = [] } = useQuery<TriggerWord[]>({
+    queryKey: ["/api/trigger-words"],
   });
 
   const uploadMutation = useMutation({
@@ -91,6 +98,56 @@ export default function SoundLibrary() {
       toast({
         title: "Error",
         description: "Failed to delete sound clip",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createTriggerMutation = useMutation({
+    mutationFn: async (data: { phrase: string; soundClipIds: number[]; caseSensitive: boolean; enabled: boolean }) => {
+      const response = await apiRequest("/api/trigger-words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trigger-words"] });
+      setSelectedSoundForTrigger(null);
+      setTriggerPhrase("");
+      setCaseSensitive(false);
+      toast({
+        title: "Success",
+        description: "Trigger word created successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create trigger word",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteTriggerMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest(`/api/trigger-words/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trigger-words"] });
+      toast({
+        title: "Success",
+        description: "Trigger word deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete trigger word",
         variant: "destructive",
       });
     },
@@ -207,6 +264,30 @@ export default function SoundLibrary() {
 
   const formatDuration = (seconds: number) => {
     return `${seconds.toFixed(1)}s`;
+  };
+
+  const getSoundTriggers = (soundClipId: number) => {
+    return triggerWords.filter(trigger => 
+      trigger.soundClipIds && trigger.soundClipIds.includes(soundClipId)
+    );
+  };
+
+  const handleCreateTrigger = () => {
+    if (!selectedSoundForTrigger || !triggerPhrase.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a trigger phrase",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createTriggerMutation.mutate({
+      phrase: triggerPhrase.trim(),
+      soundClipIds: [selectedSoundForTrigger.id],
+      caseSensitive,
+      enabled: true,
+    });
   };
 
   return (
@@ -459,13 +540,65 @@ export default function SoundLibrary() {
                           <Play className="h-4 w-4" />
                         )}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSoundForTrigger(clip);
+                              setTriggerPhrase("");
+                              setCaseSensitive(false);
+                            }}
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Add trigger word"
+                          >
+                            <Zap className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Trigger for "{clip.name}"</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="triggerPhrase">Trigger Phrase</Label>
+                              <Input
+                                id="triggerPhrase"
+                                value={triggerPhrase}
+                                onChange={(e) => setTriggerPhrase(e.target.value)}
+                                placeholder="Enter trigger phrase"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="caseSensitive"
+                                checked={caseSensitive}
+                                onChange={(e) => setCaseSensitive(e.target.checked)}
+                                className="rounded"
+                              />
+                              <Label htmlFor="caseSensitive">Case sensitive</Label>
+                            </div>
+                            <div className="flex space-x-3 pt-4">
+                              <Button 
+                                type="button" 
+                                variant="outline"
+                                className="flex-1"
+                              >
+                                Cancel
+                              </Button>
+                              <Button 
+                                onClick={handleCreateTrigger}
+                                className="flex-1 bg-primary hover:bg-primary-dark text-white"
+                                disabled={createTriggerMutation.isPending}
+                              >
+                                {createTriggerMutation.isPending ? "Creating..." : "Create Trigger"}
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -484,6 +617,35 @@ export default function SoundLibrary() {
                       {clip.format}
                     </span>
                   </div>
+                  
+                  {/* Show existing triggers */}
+                  {(() => {
+                    const triggers = getSoundTriggers(clip.id);
+                    return triggers.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Triggers:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {triggers.map((trigger) => (
+                            <div key={trigger.id} className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded text-xs">
+                              <span>"{trigger.phrase}"</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteTriggerMutation.mutate(trigger.id)}
+                                className="h-3 w-3 p-0 text-blue-600 hover:text-red-500"
+                                title="Delete trigger"
+                              >
+                                <X className="h-2 w-2" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  
                   {currentlyPlaying === clip.id && (
                     <div className="mt-2">
                       <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1">
