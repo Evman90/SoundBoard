@@ -15,7 +15,8 @@ export const soundClips = pgTable("sound_clips", {
 export const triggerWords = pgTable("trigger_words", {
   id: serial("id").primaryKey(),
   phrase: text("phrase").notNull(),
-  soundClipId: integer("sound_clip_id").notNull(),
+  soundClipIds: integer("sound_clip_ids").array().notNull(),
+  currentIndex: integer("current_index").default(0),
   caseSensitive: boolean("case_sensitive").default(false),
   enabled: boolean("enabled").default(true),
 });
@@ -61,7 +62,7 @@ export const profileSchema = z.object({
   })),
   triggerWords: z.array(z.object({
     phrase: z.string(),
-    soundClipName: z.string(), // Reference by name instead of ID
+    soundClipNames: z.array(z.string()), // Multiple sound clips per trigger
     caseSensitive: z.boolean(),
     enabled: z.boolean(),
   })),

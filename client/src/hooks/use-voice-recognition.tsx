@@ -168,12 +168,29 @@ export function useVoiceRecognition() {
           triggerCooldownRef.current.delete(cooldownKey);
         }, 2000); // 2 second cooldown
         
-        // Find and play the associated sound
-        const soundClip = soundClips.find(clip => clip.id === trigger.soundClipId);
-        if (soundClip) {
-          console.log("🎯 Trigger matched:", phrase, "-> Playing:", soundClip.name);
-          playSound(soundClip.url, soundClip.id, 0.75); // Play at 75% volume
-        }
+        // Get the next sound clip for this trigger (handles cycling through multiple clips)
+        fetch(`/api/trigger-words/${trigger.id}/next-sound-clip`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.soundClipId) {
+              const soundClip = soundClips.find(clip => clip.id === data.soundClipId);
+              if (soundClip) {
+                console.log("🎯 Trigger matched:", phrase, "-> Playing cycling sound:", soundClip.name);
+                playSound(soundClip.url, soundClip.id, 0.75);
+              }
+            }
+          })
+          .catch(error => {
+            console.error("Error getting next sound clip:", error);
+            // Fallback: use first sound clip from soundClipIds array if API fails
+            if (trigger.soundClipIds && trigger.soundClipIds.length > 0) {
+              const soundClip = soundClips.find(clip => clip.id === trigger.soundClipIds[0]);
+              if (soundClip) {
+                console.log("🎯 Trigger matched:", phrase, "-> Playing fallback sound:", soundClip.name);
+                playSound(soundClip.url, soundClip.id, 0.75);
+              }
+            }
+          });
       }
     });
 

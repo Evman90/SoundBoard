@@ -18,6 +18,7 @@ export interface IStorage {
   createTriggerWord(triggerWord: InsertTriggerWord): Promise<TriggerWord>;
   updateTriggerWord(id: number, triggerWord: Partial<InsertTriggerWord>): Promise<TriggerWord | undefined>;
   deleteTriggerWord(id: number): Promise<void>;
+  getNextSoundClipForTrigger(triggerId: number): Promise<number | null>;
   
   // Settings
   getSettings(): Promise<Settings>;
@@ -80,10 +81,20 @@ export class MemStorage implements IStorage {
 
   async deleteSoundClip(id: number): Promise<void> {
     this.soundClips.delete(id);
-    // Also delete associated trigger words
+    // Remove sound clip from trigger words and delete triggers with no clips left
     for (const [triggerId, triggerWord] of Array.from(this.triggerWords.entries())) {
-      if (triggerWord.soundClipId === id) {
+      const updatedIds = triggerWord.soundClipIds.filter(clipId => clipId !== id);
+      if (updatedIds.length === 0) {
+        // Delete trigger word if no sound clips left
         this.triggerWords.delete(triggerId);
+      } else if (updatedIds.length !== triggerWord.soundClipIds.length) {
+        // Update trigger word with remaining sound clips
+        const updatedTrigger = {
+          ...triggerWord,
+          soundClipIds: updatedIds,
+          currentIndex: Math.min(triggerWord.currentIndex, updatedIds.length - 1)
+        };
+        this.triggerWords.set(triggerId, updatedTrigger);
       }
     }
   }
@@ -102,7 +113,9 @@ export class MemStorage implements IStorage {
       ...insertTriggerWord, 
       id,
       enabled: insertTriggerWord.enabled !== false,
-      caseSensitive: insertTriggerWord.caseSensitive || false
+      caseSensitive: insertTriggerWord.caseSensitive || false,
+      currentIndex: 0,
+      soundClipIds: insertTriggerWord.soundClipIds || []
     };
     this.triggerWords.set(id, triggerWord);
     return triggerWord;
@@ -116,7 +129,9 @@ export class MemStorage implements IStorage {
       ...existing, 
       ...updates,
       enabled: updates.enabled ?? existing.enabled,
-      caseSensitive: updates.caseSensitive ?? existing.caseSensitive
+      caseSensitive: updates.caseSensitive ?? existing.caseSensitive,
+      soundClipIds: updates.soundClipIds ?? existing.soundClipIds,
+      currentIndex: existing.currentIndex
     };
     this.triggerWords.set(id, updated);
     return updated;
@@ -124,6 +139,22 @@ export class MemStorage implements IStorage {
 
   async deleteTriggerWord(id: number): Promise<void> {
     this.triggerWords.delete(id);
+  }
+
+  async getNextSoundClipForTrigger(triggerId: number): Promise<number | null> {
+    const triggerWord = this.triggerWords.get(triggerId);
+    if (!triggerWord || !triggerWord.soundClipIds || triggerWord.soundClipIds.length === 0) {
+      return null;
+    }
+
+    const currentSoundClipId = triggerWord.soundClipIds[triggerWord.currentIndex];
+    
+    // Cycle to next index
+    const nextIndex = (triggerWord.currentIndex + 1) % triggerWord.soundClipIds.length;
+    triggerWord.currentIndex = nextIndex;
+    this.triggerWords.set(triggerId, triggerWord);
+
+    return currentSoundClipId;
   }
 
   async getSettings(): Promise<Settings> {
@@ -180,11 +211,17 @@ export class MemStorage implements IStorage {
     // Convert trigger words to use sound clip names instead of IDs
     const profileTriggerWords = [];
     for (const trigger of triggerWords) {
-      const soundClip = soundClips.find(clip => clip.id === trigger.soundClipId);
-      if (soundClip) {
+      const soundClipNames = [];
+      for (const clipId of trigger.soundClipIds) {
+        const soundClip = soundClips.find(clip => clip.id === clipId);
+        if (soundClip) {
+          soundClipNames.push(soundClip.name);
+        }
+      }
+      if (soundClipNames.length > 0) {
         profileTriggerWords.push({
           phrase: trigger.phrase,
-          soundClipName: soundClip.name,
+          soundClipNames,
           caseSensitive: trigger.caseSensitive || false,
           enabled: trigger.enabled !== false,
         });
@@ -479,11 +516,17 @@ export class DatabaseStorage implements IStorage {
     // Convert trigger words to use sound clip names instead of IDs
     const profileTriggerWords = [];
     for (const trigger of triggerWords) {
-      const soundClip = soundClips.find(clip => clip.id === trigger.soundClipId);
-      if (soundClip) {
+      const soundClipNames = [];
+      for (const clipId of trigger.soundClipIds) {
+        const soundClip = soundClips.find(clip => clip.id === clipId);
+        if (soundClip) {
+          soundClipNames.push(soundClip.name);
+        }
+      }
+      if (soundClipNames.length > 0) {
         profileTriggerWords.push({
           phrase: trigger.phrase,
-          soundClipName: soundClip.name,
+          soundClipNames,
           caseSensitive: trigger.caseSensitive || false,
           enabled: trigger.enabled !== false,
         });

@@ -206,6 +206,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get next sound clip for a trigger word (cycling functionality)
+  app.get("/api/trigger-words/:id/next-sound-clip", async (req, res) => {
+    try {
+      const triggerId = parseInt(req.params.id);
+      const nextSoundClipId = await storage.getNextSoundClipForTrigger(triggerId);
+      
+      if (nextSoundClipId === null) {
+        return res.status(404).json({ message: 'Trigger word not found or no sound clips associated' });
+      }
+      
+      return res.status(200).json({ soundClipId: nextSoundClipId });
+    } catch (error) {
+      console.error('Error getting next sound clip for trigger:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Export profile
   app.get("/api/profile/export", async (req, res) => {
     try {
