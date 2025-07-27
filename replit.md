@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Mobile Voice Recognition Optimization** - Enhanced mobile support with haptic feedback and touch-optimized UI
 ✓ **Session-Based Storage** - Data stored temporarily in memory during browser session for privacy and performance
 ✓ **Profile System** - Export/import all data as portable JSON files for permanent storage and sharing across devices
+✓ **Server Profile Storage** - Cloud backup with 10MB limit and custom filenames for cross-device access
 ✓ **Production Ready** - All essential features working and tested
 
 ## System Architecture
@@ -78,6 +79,8 @@ Preferred communication style: Simple, everyday language.
 - **Data Portability**: Profile files include audio data as base64 encoding for complete portability
 - **Cross-Device Compatibility**: Share profiles between different devices and users
 - **Backup System**: Export profiles as backup before making major changes
+- **Server Storage**: Save profiles to server with 10MB limit for cloud backup and cross-device access
+- **Profile Management**: Custom filename prompts, server profile listing, loading, and deletion
 
 ## Data Flow
 
@@ -86,6 +89,7 @@ Preferred communication style: Simple, everyday language.
 3. **Trigger Management**: User creates trigger words → Associated with sound clips → Stored in memory → Used for real-time matching
 4. **Audio Playback**: Trigger detected → Sound clip retrieved → Audio element created → Played with volume control
 5. **Profile Management**: User exports data → All memory data and audio files packaged → JSON file downloaded → User imports → Data restored to memory
+6. **Server Profile Storage**: User saves to server → Profile validated for size limit → Stored with custom filename → Available for cross-device loading
 
 ## External Dependencies
 

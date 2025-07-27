@@ -28,6 +28,12 @@ export interface IStorage {
   exportProfile(): Promise<any>;
   importProfile(profileData: any): Promise<void>;
   clearAllData(): Promise<void>;
+  
+  // Server profile storage methods
+  saveProfileToServer(profileData: any, filename: string): Promise<void>;
+  getServerProfiles(): Promise<string[]>;
+  loadProfileFromServer(filename: string): Promise<any>;
+  deleteServerProfile(filename: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -49,6 +55,12 @@ export class MemStorage implements IStorage {
     };
     this.currentSoundClipId = 1;
     this.currentTriggerWordId = 1;
+    
+    // Ensure server profiles directory exists
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    if (!fs.existsSync(serverProfilesDir)) {
+      fs.mkdirSync(serverProfilesDir, { recursive: true });
+    }
   }
 
   async getSoundClips(): Promise<SoundClip[]> {
@@ -86,7 +98,12 @@ export class MemStorage implements IStorage {
 
   async createTriggerWord(insertTriggerWord: InsertTriggerWord): Promise<TriggerWord> {
     const id = this.currentTriggerWordId++;
-    const triggerWord: TriggerWord = { ...insertTriggerWord, id };
+    const triggerWord: TriggerWord = { 
+      ...insertTriggerWord, 
+      id,
+      enabled: insertTriggerWord.enabled !== false,
+      caseSensitive: insertTriggerWord.caseSensitive || false
+    };
     this.triggerWords.set(id, triggerWord);
     return triggerWord;
   }
@@ -290,6 +307,61 @@ export class MemStorage implements IStorage {
       defaultResponseDelay: 2000,
       defaultResponseIndex: 0,
     };
+  }
+
+  async saveProfileToServer(profileData: any, filename: string): Promise<void> {
+    // Validate file size (10MB limit)
+    const profileJson = JSON.stringify(profileData);
+    const sizeInBytes = Buffer.byteLength(profileJson, 'utf8');
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+    
+    if (sizeInMB > 10) {
+      throw new Error(`Profile size (${sizeInMB.toFixed(2)}MB) exceeds the 10MB limit`);
+    }
+    
+    // Sanitize filename
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    const filePath = path.join(serverProfilesDir, sanitizedFilename);
+    
+    // Save profile to server
+    fs.writeFileSync(filePath, profileJson, 'utf8');
+  }
+
+  async getServerProfiles(): Promise<string[]> {
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    
+    if (!fs.existsSync(serverProfilesDir)) {
+      return [];
+    }
+    
+    const files = fs.readdirSync(serverProfilesDir);
+    return files
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.replace('.json', ''));
+  }
+
+  async loadProfileFromServer(filename: string): Promise<any> {
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    const filePath = path.join(serverProfilesDir, sanitizedFilename);
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Profile "${filename}" not found on server`);
+    }
+    
+    const profileJson = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(profileJson);
+  }
+
+  async deleteServerProfile(filename: string): Promise<void> {
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    const filePath = path.join(serverProfilesDir, sanitizedFilename);
+    
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 }
 
@@ -535,6 +607,66 @@ export class DatabaseStorage implements IStorage {
       defaultResponseDelay: 2000,
       defaultResponseIndex: 0,
     });
+  }
+
+  async saveProfileToServer(profileData: any, filename: string): Promise<void> {
+    // Validate file size (10MB limit)
+    const profileJson = JSON.stringify(profileData);
+    const sizeInBytes = Buffer.byteLength(profileJson, 'utf8');
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+    
+    if (sizeInMB > 10) {
+      throw new Error(`Profile size (${sizeInMB.toFixed(2)}MB) exceeds the 10MB limit`);
+    }
+    
+    // Sanitize filename
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    
+    if (!fs.existsSync(serverProfilesDir)) {
+      fs.mkdirSync(serverProfilesDir, { recursive: true });
+    }
+    
+    const filePath = path.join(serverProfilesDir, sanitizedFilename);
+    
+    // Save profile to server
+    fs.writeFileSync(filePath, profileJson, 'utf8');
+  }
+
+  async getServerProfiles(): Promise<string[]> {
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    
+    if (!fs.existsSync(serverProfilesDir)) {
+      return [];
+    }
+    
+    const files = fs.readdirSync(serverProfilesDir);
+    return files
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.replace('.json', ''));
+  }
+
+  async loadProfileFromServer(filename: string): Promise<any> {
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    const filePath = path.join(serverProfilesDir, sanitizedFilename);
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Profile "${filename}" not found on server`);
+    }
+    
+    const profileJson = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(profileJson);
+  }
+
+  async deleteServerProfile(filename: string): Promise<void> {
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
+    const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    const filePath = path.join(serverProfilesDir, sanitizedFilename);
+    
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 }
 

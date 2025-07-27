@@ -1,19 +1,120 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, Trash2, FileJson } from 'lucide-react';
+import { Download, Upload, Trash2, FileJson, Cloud, Loader2 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export function ProfileManager() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [serverFilename, setServerFilename] = useState('');
+  const [selectedServerProfile, setSelectedServerProfile] = useState('');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Query for server profiles
+  const { data: serverProfiles = [], refetch: refetchServerProfiles } = useQuery({
+    queryKey: ['/api/profile/server-profiles'],
+    select: (data: any) => data?.profiles || [],
+  });
+
+  // Mutation to save profile to server
+  const saveToServerMutation = useMutation({
+    mutationFn: async (filename: string) => {
+      const response = await fetch('/api/profile/save-to-server', {
+        method: 'POST',
+        body: JSON.stringify({ filename }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save profile to server');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile saved to server",
+        description: "Your profile has been saved to the server successfully.",
+      });
+      refetchServerProfiles();
+      setShowSaveDialog(false);
+      setServerFilename('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error saving profile",
+        description: error.message || "Failed to save profile to server",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to load profile from server
+  const loadFromServerMutation = useMutation({
+    mutationFn: async (filename: string) => {
+      const response = await fetch(`/api/profile/load-from-server/${encodeURIComponent(filename)}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to load profile from server');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile loaded from server",
+        description: "Your profile has been loaded successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sound-clips'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trigger-words'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error loading profile",
+        description: error.message || "Failed to load profile from server",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to delete profile from server
+  const deleteFromServerMutation = useMutation({
+    mutationFn: async (filename: string) => {
+      const response = await fetch(`/api/profile/server-profiles/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete profile from server');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile deleted from server",
+        description: "Profile has been deleted successfully.",
+      });
+      refetchServerProfiles();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error deleting profile",
+        description: error.message || "Failed to delete profile from server",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleExportProfile = async () => {
     try {
@@ -218,6 +319,142 @@ export function ProfileManager() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Server Profile Management */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium flex items-center gap-2">
+              <Cloud className="h-5 w-5" />
+              Server Storage (10MB limit)
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Save profiles to the server for cloud backup and access across devices.
+            </p>
+          </div>
+
+          {/* Save to Server */}
+          <div className="space-y-3">
+            <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+              <DialogTrigger asChild>
+                <Button className="w-full" variant="outline">
+                  <Cloud className="h-4 w-4 mr-2" />
+                  Save to Server
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Save Profile to Server</DialogTitle>
+                  <DialogDescription>
+                    Enter a filename for your profile. It will be saved to the server with a 10MB size limit.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="server-filename">Filename</Label>
+                    <Input
+                      id="server-filename"
+                      value={serverFilename}
+                      onChange={(e) => setServerFilename(e.target.value)}
+                      placeholder="my-soundboard-config"
+                      maxLength={100}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => saveToServerMutation.mutate(serverFilename)}
+                    disabled={!serverFilename.trim() || saveToServerMutation.isPending}
+                  >
+                    {saveToServerMutation.isPending && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Save to Server
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Load from Server */}
+            <div className="space-y-2">
+              <Label htmlFor="server-profile-select">Load from Server</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={selectedServerProfile}
+                  onValueChange={setSelectedServerProfile}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select server profile..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serverProfiles.length === 0 ? (
+                      <SelectItem value="no-profiles" disabled>
+                        No server profiles found
+                      </SelectItem>
+                    ) : (
+                      serverProfiles.map((filename: string) => (
+                        <SelectItem key={filename} value={filename}>
+                          {filename}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => loadFromServerMutation.mutate(selectedServerProfile)}
+                  disabled={!selectedServerProfile || selectedServerProfile === 'no-profiles' || loadFromServerMutation.isPending}
+                  variant="outline"
+                >
+                  {loadFromServerMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      disabled={!selectedServerProfile || selectedServerProfile === 'no-profiles'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Server Profile</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{selectedServerProfile}" from the server? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          deleteFromServerMutation.mutate(selectedServerProfile);
+                          setSelectedServerProfile('');
+                        }}
+                        disabled={deleteFromServerMutation.isPending}
+                      >
+                        {deleteFromServerMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           </div>
         </div>
 

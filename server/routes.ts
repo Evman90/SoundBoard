@@ -248,6 +248,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save profile to server
+  app.post("/api/profile/save-to-server", async (req, res) => {
+    try {
+      const { filename } = req.body;
+      if (!filename || typeof filename !== 'string' || filename.trim() === '') {
+        return res.status(400).json({ message: "Filename is required" });
+      }
+
+      const profile = await storage.exportProfile();
+      await storage.saveProfileToServer(profile, filename.trim());
+      
+      res.json({ message: "Profile saved to server successfully" });
+    } catch (error) {
+      console.error("Error saving profile to server:", error);
+      res.status(500).json({ message: error.message || "Failed to save profile to server" });
+    }
+  });
+
+  // Get server profiles list
+  app.get("/api/profile/server-profiles", async (req, res) => {
+    try {
+      const profiles = await storage.getServerProfiles();
+      res.json({ profiles });
+    } catch (error) {
+      console.error("Error getting server profiles:", error);
+      res.status(500).json({ message: "Failed to get server profiles" });
+    }
+  });
+
+  // Load profile from server
+  app.get("/api/profile/load-from-server/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      if (!filename) {
+        return res.status(400).json({ message: "Filename is required" });
+      }
+
+      const profileData = await storage.loadProfileFromServer(filename);
+      await storage.importProfile(profileData);
+      
+      res.json({ message: "Profile loaded from server successfully" });
+    } catch (error) {
+      console.error("Error loading profile from server:", error);
+      res.status(500).json({ message: error.message || "Failed to load profile from server" });
+    }
+  });
+
+  // Delete profile from server
+  app.delete("/api/profile/server-profiles/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      if (!filename) {
+        return res.status(400).json({ message: "Filename is required" });
+      }
+
+      await storage.deleteServerProfile(filename);
+      res.json({ message: "Profile deleted from server successfully" });
+    } catch (error) {
+      console.error("Error deleting profile from server:", error);
+      res.status(500).json({ message: "Failed to delete profile from server" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
