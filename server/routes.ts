@@ -5,7 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertSoundClipSchema, insertTriggerWordSchema, insertSettingsSchema, insertConversationRecordingSchema } from "@shared/schema";
+import { insertSoundClipSchema, insertTriggerWordSchema, insertSettingsSchema } from "@shared/schema";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");

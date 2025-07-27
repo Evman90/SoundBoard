@@ -37,12 +37,6 @@ export function useVoiceRecognition() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const triggerCooldownRef = useRef<Set<string>>(new Set());
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const conversationRecordingRef = useRef<{
-    isRecording: boolean;
-    chunks: Blob[];
-    startTime: number;
-  }>({ isRecording: false, chunks: [], startTime: 0 });
   const { playSound } = useAudioPlayer();
 
   const { data: triggerWords = [] } = useQuery<TriggerWord[]>({
@@ -433,107 +427,7 @@ export function useVoiceRecognition() {
     setTranscript("");
   }, []);
 
-  // Conversation recording functions with sequential mode
-  const startConversationRecording = useCallback(async () => {
-    try {
-      console.log("🎙️ Starting conversation recording in sequential mode...");
-      
-      // Store current voice recognition state
-      const wasListening = isListening;
-      
-      // Temporarily stop voice recognition to free up microphone
-      if (wasListening) {
-        console.log("📞 Temporarily pausing voice recognition for recording setup...");
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.stop();
-          } catch (e) {
-            console.log("Recognition already stopped");
-          }
-        }
-        
-        // Brief delay to ensure microphone is released
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
 
-      // Get fresh microphone stream for recording
-      const recordingStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          sampleRate: 44100
-        }
-      });
-      
-      const mediaRecorder = new MediaRecorder(recordingStream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-          ? 'audio/webm;codecs=opus' 
-          : 'audio/webm',
-      });
-      
-      conversationRecordingRef.current = {
-        isRecording: true,
-        chunks: [],
-        startTime: Date.now()
-      };
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          conversationRecordingRef.current.chunks.push(event.data);
-        }
-      };
-
-      mediaRecorder.start(1000); // Collect data every second
-      mediaRecorderRef.current = mediaRecorder;
-      
-      // Restart voice recognition immediately so it works during recording
-      if (wasListening) {
-        console.log("🔄 Restarting voice recognition during recording...");
-        setTimeout(() => {
-          startListening();
-        }, 1000); // Small delay to ensure recording is fully started
-      }
-      
-      console.log("🎙️ Conversation recording started successfully in sequential mode");
-      return true;
-    } catch (error) {
-      console.error("Failed to start conversation recording:", error);
-      return false;
-    }
-  }, [isListening, startListening]);
-
-  const stopConversationRecording = useCallback(() => {
-    if (!mediaRecorderRef.current || !conversationRecordingRef.current.isRecording) {
-      return null;
-    }
-
-    return new Promise<Blob>((resolve) => {
-      const mediaRecorder = mediaRecorderRef.current!;
-      
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(conversationRecordingRef.current.chunks, { type: 'audio/webm' });
-        conversationRecordingRef.current.isRecording = false;
-        conversationRecordingRef.current.chunks = [];
-        console.log("🎙️ Conversation recording stopped, audio blob created");
-        resolve(blob);
-      };
-
-      mediaRecorder.stop();
-      mediaRecorderRef.current = null;
-    });
-  }, []);
-
-  const getConversationRecordingStatus = useCallback(() => {
-    if (!conversationRecordingRef.current.isRecording) {
-      return { isRecording: false, duration: 0, size: 0 };
-    }
-
-    const duration = Math.floor((Date.now() - conversationRecordingRef.current.startTime) / 1000);
-    const size = conversationRecordingRef.current.chunks.reduce((total, chunk) => total + chunk.size, 0);
-    
-    return { isRecording: true, duration, size };
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -551,9 +445,5 @@ export function useVoiceRecognition() {
     startListening,
     stopListening,
     clearTranscript,
-    // Conversation recording functions
-    startConversationRecording,
-    stopConversationRecording,
-    getConversationRecordingStatus
   };
 }

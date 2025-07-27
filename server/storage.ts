@@ -1,4 +1,4 @@
-import { soundClips, triggerWords, settings, conversationRecordings, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord, type Settings, type InsertSettings, type ConversationRecording, type InsertConversationRecording } from "@shared/schema";
+import { soundClips, triggerWords, settings, type SoundClip, type InsertSoundClip, type TriggerWord, type InsertTriggerWord, type Settings, type InsertSettings } from "@shared/schema";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
@@ -36,25 +36,19 @@ export interface IStorage {
   loadProfileFromServer(filename: string): Promise<any>;
   deleteServerProfile(filename: string): Promise<void>;
 
-  // Conversation recording methods
-  getConversationRecordings(): Promise<ConversationRecording[]>;
-  createConversationRecording(recording: InsertConversationRecording): Promise<ConversationRecording>;
-  deleteConversationRecording(id: number): Promise<void>;
+
 }
 
 export class MemStorage implements IStorage {
   private soundClips: Map<number, SoundClip>;
   private triggerWords: Map<number, TriggerWord>;
   private settings: Settings;
-  private conversationRecordings: Map<number, ConversationRecording>;
   private currentSoundClipId: number;
   private currentTriggerWordId: number;
-  private currentConversationRecordingId: number;
 
   constructor() {
     this.soundClips = new Map();
     this.triggerWords = new Map();
-    this.conversationRecordings = new Map();
     this.settings = {
       id: 1,
       defaultResponseEnabled: false,
