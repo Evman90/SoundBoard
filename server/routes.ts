@@ -141,7 +141,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(triggerWord);
     } catch (error) {
       console.error("Error creating trigger word:", error);
-      res.status(400).json({ message: "Invalid trigger word data" });
+      console.error("Request body:", req.body);
+      console.error("Validation error:", error);
+      res.status(400).json({ message: "Failed to create trigger word", error: error.message });
     }
   });
 
@@ -170,61 +172,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Trigger word deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete trigger word" });
-    }
-  });
-
-  // Conversation recording endpoints
-  app.get("/api/conversation-recordings", async (req, res) => {
-    try {
-      const recordings = await storage.getConversationRecordings();
-      res.json(recordings);
-    } catch (error) {
-      console.error("Error getting conversation recordings:", error);
-      res.status(500).json({ error: "Failed to get conversation recordings" });
-    }
-  });
-
-  app.post("/api/conversation-recordings", upload.single("audio"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No audio file provided" });
-      }
-
-      const { name, duration } = req.body;
-      if (!name || !duration) {
-        return res.status(400).json({ error: "Name and duration are required" });
-      }
-
-      const durationFloat = parseFloat(duration);
-      const url = `/uploads/${req.file.filename}`;
-      
-      const format = req.file.mimetype.split('/')[1] || 'unknown';
-
-      const recordingData = insertConversationRecordingSchema.parse({
-        filename: req.file.filename,
-        originalName: name,
-        size: req.file.size,
-        duration: durationFloat,
-        format,
-        url,
-      });
-
-      const recording = await storage.createConversationRecording(recordingData);
-      res.status(201).json(recording);
-    } catch (error) {
-      console.error("Error creating conversation recording:", error);
-      res.status(500).json({ error: "Failed to create conversation recording" });
-    }
-  });
-
-  app.delete("/api/conversation-recordings/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      await storage.deleteConversationRecording(id);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting conversation recording:", error);
-      res.status(500).json({ error: "Failed to delete conversation recording" });
     }
   });
 
