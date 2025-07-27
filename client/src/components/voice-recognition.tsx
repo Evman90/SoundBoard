@@ -123,8 +123,8 @@ export default function VoiceRecognition() {
     }
   };
 
-  const handleStartRecording = () => {
-    const success = startConversationRecording();
+  const handleStartRecording = async () => {
+    const success = await startConversationRecording();
     if (success) {
       setShowRecordDialog(false);
     }
