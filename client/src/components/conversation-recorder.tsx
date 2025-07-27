@@ -70,7 +70,6 @@ export default function ConversationRecorder() {
     mutationFn: async (enabled: boolean) => {
       return await apiRequest("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationRecordingEnabled: enabled }),
       });
     },
