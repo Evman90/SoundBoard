@@ -433,17 +433,40 @@ export function useVoiceRecognition() {
     setTranscript("");
   }, []);
 
-  // Conversation recording functions
-  const startConversationRecording = useCallback(() => {
-    if (!streamRef.current) {
-      console.error("No audio stream available for recording");
-      return false;
-    }
-
+  // Conversation recording functions with sequential mode
+  const startConversationRecording = useCallback(async () => {
     try {
-      console.log("🎙️ Starting conversation recording using voice recognition stream...");
+      console.log("🎙️ Starting conversation recording in sequential mode...");
       
-      const mediaRecorder = new MediaRecorder(streamRef.current, {
+      // Store current voice recognition state
+      const wasListening = isListening;
+      
+      // Temporarily stop voice recognition to free up microphone
+      if (wasListening) {
+        console.log("📞 Temporarily pausing voice recognition for recording setup...");
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.stop();
+          } catch (e) {
+            console.log("Recognition already stopped");
+          }
+        }
+        
+        // Brief delay to ensure microphone is released
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Get fresh microphone stream for recording
+      const recordingStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 44100
+        }
+      });
+      
+      const mediaRecorder = new MediaRecorder(recordingStream, {
         mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
           ? 'audio/webm;codecs=opus' 
           : 'audio/webm',
@@ -464,13 +487,21 @@ export function useVoiceRecognition() {
       mediaRecorder.start(1000); // Collect data every second
       mediaRecorderRef.current = mediaRecorder;
       
-      console.log("🎙️ Conversation recording started successfully");
+      // Restart voice recognition immediately so it works during recording
+      if (wasListening) {
+        console.log("🔄 Restarting voice recognition during recording...");
+        setTimeout(() => {
+          startListening();
+        }, 1000); // Small delay to ensure recording is fully started
+      }
+      
+      console.log("🎙️ Conversation recording started successfully in sequential mode");
       return true;
     } catch (error) {
       console.error("Failed to start conversation recording:", error);
       return false;
     }
-  }, []);
+  }, [isListening, startListening]);
 
   const stopConversationRecording = useCallback(() => {
     if (!mediaRecorderRef.current || !conversationRecordingRef.current.isRecording) {
