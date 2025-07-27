@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Profile System** - Export/import all data as portable JSON files for permanent storage and sharing across devices
 ✓ **Server Profile Storage** - Cloud backup with 10MB limit and custom filenames for cross-device access
 ✓ **Production Ready** - All essential features working and tested
+✓ **Default Clip Auto-Play** - Default clips automatically play when voice is detected but no trigger words match
 
 ## System Architecture
 

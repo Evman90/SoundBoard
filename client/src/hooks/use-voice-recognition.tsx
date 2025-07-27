@@ -194,31 +194,25 @@ export function useVoiceRecognition() {
       }
     });
 
-    // Check for default response if no triggers matched and speech was detected
-    if (!triggerMatched && text.trim().length > 0 && settings?.defaultResponseEnabled && settings.defaultResponseSoundClipIds && settings.defaultResponseSoundClipIds.length > 0) {
-      const cooldownKey = "default-response";
-      if (!triggerCooldownRef.current.has(cooldownKey)) {
-        triggerCooldownRef.current.add(cooldownKey);
-        setTimeout(() => {
-          triggerCooldownRef.current.delete(cooldownKey);
-        }, settings.defaultResponseDelay || 2000);
+    // Check for default clips response if no triggers matched and speech was detected
+    if (!triggerMatched && text.trim().length > 0) {
+      const defaultClips = soundClips.filter(clip => clip.isDefault);
+      
+      if (defaultClips.length > 0) {
+        const cooldownKey = "default-clips-response";
+        if (!triggerCooldownRef.current.has(cooldownKey)) {
+          triggerCooldownRef.current.add(cooldownKey);
+          setTimeout(() => {
+            triggerCooldownRef.current.delete(cooldownKey);
+          }, 2000); // 2 second cooldown
 
-        // Play next default response after a delay
-        setTimeout(async () => {
-          try {
-            const response = await fetch("/api/settings/next-default-response");
-            const data = await response.json();
-            if (data.soundClipId) {
-              const defaultSoundClip = soundClips.find(clip => clip.id === data.soundClipId);
-              if (defaultSoundClip) {
-                console.log("🔄 No trigger matched, playing next default response:", defaultSoundClip.name);
-                playSound(defaultSoundClip.url, defaultSoundClip.id, 0.75);
-              }
-            }
-          } catch (error) {
-            console.error("Error getting next default response:", error);
-          }
-        }, settings.defaultResponseDelay || 2000);
+          // Play random default clip after short delay
+          setTimeout(() => {
+            const randomClip = defaultClips[Math.floor(Math.random() * defaultClips.length)];
+            console.log("🔄 No trigger matched, playing random default clip:", randomClip.name);
+            playSound(randomClip.url, randomClip.id, 0.75);
+          }, 500); // Short delay before playing default clip
+        }
       }
     }
   }, [triggerWords, soundClips, playSound, settings]);
