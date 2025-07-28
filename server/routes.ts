@@ -280,13 +280,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Save profile to server
   app.post("/api/profile/save-to-server", async (req, res) => {
     try {
-      const { filename } = req.body;
+      const { filename, readOnly } = req.body;
       if (!filename || typeof filename !== 'string' || filename.trim() === '') {
         return res.status(400).json({ message: "Filename is required" });
       }
 
       const profile = await storage.exportProfile();
-      await storage.saveProfileToServer(profile, filename.trim());
+      await storage.saveProfileToServer(profile, filename.trim(), readOnly || false);
       
       res.json({ message: "Profile saved to server successfully" });
     } catch (error) {

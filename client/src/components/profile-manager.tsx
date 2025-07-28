@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, Trash2, FileJson, Cloud, Loader2 } from 'lucide-react';
+import { Download, Upload, Trash2, FileJson, Cloud, Loader2, Lock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export function ProfileManager() {
@@ -19,6 +20,7 @@ export function ProfileManager() {
   const [serverFilename, setServerFilename] = useState('');
   const [selectedServerProfile, setSelectedServerProfile] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [readOnlyMode, setReadOnlyMode] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -30,10 +32,10 @@ export function ProfileManager() {
 
   // Mutation to save profile to server
   const saveToServerMutation = useMutation({
-    mutationFn: async (filename: string) => {
+    mutationFn: async ({ filename, readOnly }: { filename: string, readOnly: boolean }) => {
       const response = await fetch('/api/profile/save-to-server', {
         method: 'POST',
-        body: JSON.stringify({ filename }),
+        body: JSON.stringify({ filename, readOnly }),
         headers: { 'Content-Type': 'application/json' },
       });
       if (!response.ok) {
@@ -50,6 +52,7 @@ export function ProfileManager() {
       refetchServerProfiles();
       setShowSaveDialog(false);
       setServerFilename('');
+      setReadOnlyMode(false);
     },
     onError: (error: any) => {
       toast({
@@ -363,13 +366,24 @@ export function ProfileManager() {
                       maxLength={100}
                     />
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="read-only-mode"
+                      checked={readOnlyMode}
+                      onCheckedChange={setReadOnlyMode}
+                    />
+                    <Label htmlFor="read-only-mode" className="flex items-center gap-2 text-sm">
+                      <Lock className="h-4 w-4" />
+                      Save as read-only (cannot be overwritten)
+                    </Label>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
                     Cancel
                   </Button>
                   <Button
-                    onClick={() => saveToServerMutation.mutate(serverFilename)}
+                    onClick={() => saveToServerMutation.mutate({ filename: serverFilename, readOnly: readOnlyMode })}
                     disabled={!serverFilename.trim() || saveToServerMutation.isPending}
                   >
                     {saveToServerMutation.isPending && (
@@ -398,11 +412,23 @@ export function ProfileManager() {
                         No server profiles found
                       </SelectItem>
                     ) : (
-                      serverProfiles.map((filename: string) => (
-                        <SelectItem key={filename} value={filename}>
-                          {filename}
-                        </SelectItem>
-                      ))
+                      serverProfiles.map((profile: any) => {
+                        const profileName = typeof profile === 'string' ? profile : profile.name;
+                        const isReadOnly = typeof profile === 'object' && profile.readOnly;
+                        return (
+                          <SelectItem key={profileName} value={profileName}>
+                            <div className="flex items-center gap-2">
+                              <span>{profileName}</span>
+                              {isReadOnly && (
+                                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                  <Lock className="h-3 w-3" />
+                                  Read-only
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })
                     )}
                   </SelectContent>
                 </Select>

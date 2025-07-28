@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronDown, Cloud, Download, Loader2 } from 'lucide-react';
+import { ChevronDown, Cloud, Download, Loader2, Lock } from 'lucide-react';
 
 export function ServerProfileLoader() {
   const [isOpen, setIsOpen] = useState(false);
@@ -90,26 +90,47 @@ export function ServerProfileLoader() {
                 <p className="text-xs text-muted-foreground mb-3">
                   Click any profile to load it (this will replace your current data):
                 </p>
-                {serverProfiles.map((filename: string) => (
-                  <div key={filename} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <span className="text-sm font-medium truncate flex-1 mr-2">
-                      {filename}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleLoadProfile(filename)}
-                      disabled={loadFromServerMutation.isPending}
-                      className="shrink-0"
-                    >
-                      {loadFromServerMutation.isPending && loadFromServerMutation.variables === filename ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Download className="h-3 w-3" />
-                      )}
-                    </Button>
-                  </div>
-                ))}
+                {serverProfiles.map((profile: any) => {
+                  const profileName = typeof profile === 'string' ? profile : profile.name;
+                  const isReadOnly = typeof profile === 'object' && profile.readOnly;
+                  const savedAt = typeof profile === 'object' && profile.savedAt;
+                  
+                  return (
+                    <div key={profileName} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex-1 mr-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium truncate">
+                            {profileName}
+                          </span>
+                          {isReadOnly && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Lock className="h-3 w-3" />
+                              Read-only
+                            </span>
+                          )}
+                        </div>
+                        {savedAt && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Saved: {new Date(savedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleLoadProfile(profileName)}
+                        disabled={loadFromServerMutation.isPending}
+                        className="shrink-0"
+                      >
+                        {loadFromServerMutation.isPending && loadFromServerMutation.variables === profileName ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Download className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

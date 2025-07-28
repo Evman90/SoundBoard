@@ -31,8 +31,8 @@ export interface IStorage {
   clearAllData(): Promise<void>;
   
   // Server profile storage methods
-  saveProfileToServer(profileData: any, filename: string): Promise<void>;
-  getServerProfiles(): Promise<string[]>;
+  saveProfileToServer(profileData: any, filename: string, readOnly?: boolean): Promise<void>;
+  getServerProfiles(): Promise<Array<{name: string, readOnly: boolean, savedAt?: string}>>;
   loadProfileFromServer(filename: string): Promise<any>;
   deleteServerProfile(filename: string): Promise<void>;
 
@@ -449,9 +449,7 @@ export class MemStorage implements IStorage {
     this.currentTriggerWordId = 1;
   }
 
-
-
-  async saveProfileToServer(profileData: any, filename: string): Promise<void> {
+  async saveProfileToServer(profileData: any, filename: string, readOnly: boolean = false): Promise<void> {
     // Validate file size (10MB limit)
     const profileJson = JSON.stringify(profileData);
     const sizeInBytes = Buffer.byteLength(profileJson, 'utf8');
@@ -464,13 +462,33 @@ export class MemStorage implements IStorage {
     // Sanitize filename
     const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json';
     const serverProfilesDir = path.join(process.cwd(), "server-profiles");
+    
+    if (!fs.existsSync(serverProfilesDir)) {
+      fs.mkdirSync(serverProfilesDir, { recursive: true });
+    }
+    
     const filePath = path.join(serverProfilesDir, sanitizedFilename);
     
+    // Check if profile already exists and is read-only
+    if (fs.existsSync(filePath)) {
+      const existingProfile = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      if (existingProfile.readOnly) {
+        throw new Error(`Cannot overwrite read-only profile "${filename}"`);
+      }
+    }
+    
+    // Add read-only metadata to profile
+    const profileWithMetadata = {
+      ...profileData,
+      readOnly,
+      savedAt: new Date().toISOString()
+    };
+    
     // Save profile to server
-    fs.writeFileSync(filePath, profileJson, 'utf8');
+    fs.writeFileSync(filePath, JSON.stringify(profileWithMetadata), 'utf8');
   }
 
-  async getServerProfiles(): Promise<string[]> {
+  async getServerProfiles(): Promise<Array<{name: string, readOnly: boolean, savedAt?: string}>> {
     const serverProfilesDir = path.join(process.cwd(), "server-profiles");
     
     if (!fs.existsSync(serverProfilesDir)) {
@@ -478,9 +496,29 @@ export class MemStorage implements IStorage {
     }
     
     const files = fs.readdirSync(serverProfilesDir);
-    return files
-      .filter(file => file.endsWith('.json'))
-      .map(file => file.replace('.json', ''));
+    const profiles = [];
+    
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        try {
+          const filePath = path.join(serverProfilesDir, file);
+          const profileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          profiles.push({
+            name: file.replace('.json', ''),
+            readOnly: profileData.readOnly || false,
+            savedAt: profileData.savedAt
+          });
+        } catch (error) {
+          // If we can't read the profile, just include the name with readOnly: false
+          profiles.push({
+            name: file.replace('.json', ''),
+            readOnly: false
+          });
+        }
+      }
+    }
+    
+    return profiles;
   }
 
   async loadProfileFromServer(filename: string): Promise<any> {
@@ -502,12 +540,25 @@ export class MemStorage implements IStorage {
     const filePath = path.join(serverProfilesDir, sanitizedFilename);
     
     if (fs.existsSync(filePath)) {
+      // Check if profile is read-only
+      try {
+        const profileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (profileData.readOnly) {
+          throw new Error(`Cannot delete read-only profile "${filename}"`);
+        }
+      } catch (error) {
+        if (error.message.includes('read-only')) {
+          throw error;
+        }
+        // If we can't read the file, allow deletion anyway
+      }
+      
       fs.unlinkSync(filePath);
     }
   }
 }
 
-// Database storage implementation
+// Database storage implementation  
 export class DatabaseStorage implements IStorage {
   private db;
 
@@ -592,6 +643,23 @@ export class DatabaseStorage implements IStorage {
     await this.updateSettings({ defaultResponseIndex: nextIndex });
     
     return currentSettings.defaultResponseSoundClipIds[currentIndex];
+  }
+
+  async getNextSoundClipForTrigger(triggerId: number): Promise<number | null> {
+    const triggers = await this.getTriggerWords();
+    const trigger = triggers.find(t => t.id === triggerId);
+    
+    if (!trigger || !trigger.soundClipIds || trigger.soundClipIds.length === 0) {
+      return null;
+    }
+
+    const currentIndex = trigger.currentIndex || 0;
+    const nextIndex = (currentIndex + 1) % trigger.soundClipIds.length;
+    
+    // Update the trigger's current index
+    await this.updateTriggerWord(triggerId, { currentIndex: nextIndex });
+    
+    return trigger.soundClipIds[currentIndex];
   }
 
   async exportProfile(): Promise<any> {
@@ -757,7 +825,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async saveProfileToServer(profileData: any, filename: string): Promise<void> {
+  async saveProfileToServer(profileData: any, filename: string, readOnly: boolean = false): Promise<void> {
     // Validate file size (10MB limit)
     const profileJson = JSON.stringify(profileData);
     const sizeInBytes = Buffer.byteLength(profileJson, 'utf8');
@@ -777,11 +845,26 @@ export class DatabaseStorage implements IStorage {
     
     const filePath = path.join(serverProfilesDir, sanitizedFilename);
     
+    // Check if profile already exists and is read-only
+    if (fs.existsSync(filePath)) {
+      const existingProfile = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      if (existingProfile.readOnly) {
+        throw new Error(`Cannot overwrite read-only profile "${filename}"`);
+      }
+    }
+    
+    // Add read-only metadata to profile
+    const profileWithMetadata = {
+      ...profileData,
+      readOnly,
+      savedAt: new Date().toISOString()
+    };
+    
     // Save profile to server
-    fs.writeFileSync(filePath, profileJson, 'utf8');
+    fs.writeFileSync(filePath, JSON.stringify(profileWithMetadata), 'utf8');
   }
 
-  async getServerProfiles(): Promise<string[]> {
+  async getServerProfiles(): Promise<Array<{name: string, readOnly: boolean, savedAt?: string}>> {
     const serverProfilesDir = path.join(process.cwd(), "server-profiles");
     
     if (!fs.existsSync(serverProfilesDir)) {
@@ -789,9 +872,29 @@ export class DatabaseStorage implements IStorage {
     }
     
     const files = fs.readdirSync(serverProfilesDir);
-    return files
-      .filter(file => file.endsWith('.json'))
-      .map(file => file.replace('.json', ''));
+    const profiles = [];
+    
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        try {
+          const filePath = path.join(serverProfilesDir, file);
+          const profileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          profiles.push({
+            name: file.replace('.json', ''),
+            readOnly: profileData.readOnly || false,
+            savedAt: profileData.savedAt
+          });
+        } catch (error) {
+          // If we can't read the profile, just include the name with readOnly: false
+          profiles.push({
+            name: file.replace('.json', ''),
+            readOnly: false
+          });
+        }
+      }
+    }
+    
+    return profiles;
   }
 
   async loadProfileFromServer(filename: string): Promise<any> {
@@ -813,6 +916,19 @@ export class DatabaseStorage implements IStorage {
     const filePath = path.join(serverProfilesDir, sanitizedFilename);
     
     if (fs.existsSync(filePath)) {
+      // Check if profile is read-only
+      try {
+        const profileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (profileData.readOnly) {
+          throw new Error(`Cannot delete read-only profile "${filename}"`);
+        }
+      } catch (error) {
+        if (error.message.includes('read-only')) {
+          throw error;
+        }
+        // If we can't read the file, allow deletion anyway
+      }
+      
       fs.unlinkSync(filePath);
     }
   }
