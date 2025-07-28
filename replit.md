@@ -41,6 +41,8 @@ Preferred communication style: Simple, everyday language.
 ✓ **Dynamic Badge System** - Clips with triggers show "Assigned" badge, clips without triggers show "Default" badge based on actual trigger assignments
 ✓ **Auto-Restart After 10 Words** - Voice recognition automatically restarts every 10 words to prevent timeout when users talk for extended periods, with user guidance for manual restart if needed
 ✓ **Persistent User Notice** - Added permanent info banner at top of main page instructing users how to manually restart voice recognition if it stops responding
+✓ **Read-Only Server Profiles** - Added read-only checkbox for server profile saving with lock icon visual indicators, preventing overwriting or deletion of protected profiles
+✓ **Profile Save Validation** - Server profile saving now requires at least one sound clip, preventing empty profile saves with clear user feedback and disabled save button when no clips exist
 
 
 ## System Architecture

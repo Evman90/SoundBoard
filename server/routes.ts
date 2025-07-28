@@ -286,6 +286,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const profile = await storage.exportProfile();
+      
+      // Validate that profile has at least one sound clip
+      if (!profile.soundClips || profile.soundClips.length === 0) {
+        return res.status(400).json({ message: "Cannot save profile: At least one sound clip is required" });
+      }
+      
       await storage.saveProfileToServer(profile, filename.trim(), readOnly || false);
       
       res.json({ message: "Profile saved to server successfully" });

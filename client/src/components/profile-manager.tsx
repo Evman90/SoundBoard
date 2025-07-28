@@ -30,9 +30,19 @@ export function ProfileManager() {
     select: (data: any) => data?.profiles || [],
   });
 
+  // Query for sound clips to check if any exist
+  const { data: soundClips = [] } = useQuery({
+    queryKey: ['/api/sound-clips'],
+  });
+
   // Mutation to save profile to server
   const saveToServerMutation = useMutation({
     mutationFn: async ({ filename, readOnly }: { filename: string, readOnly: boolean }) => {
+      // Client-side validation
+      if (soundClips.length === 0) {
+        throw new Error('Cannot save profile: At least one sound clip is required');
+      }
+      
       const response = await fetch('/api/profile/save-to-server', {
         method: 'POST',
         body: JSON.stringify({ filename, readOnly }),
@@ -353,6 +363,11 @@ export function ProfileManager() {
                   <DialogTitle>Save Profile to Server</DialogTitle>
                   <DialogDescription>
                     Enter a filename for your profile. It will be saved to the server with a 10MB size limit.
+                    {soundClips.length === 0 && (
+                      <span className="block text-amber-600 dark:text-amber-400 font-medium mt-2">
+                        ⚠️ You need at least one sound clip to save a profile.
+                      </span>
+                    )}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -384,7 +399,7 @@ export function ProfileManager() {
                   </Button>
                   <Button
                     onClick={() => saveToServerMutation.mutate({ filename: serverFilename, readOnly: readOnlyMode })}
-                    disabled={!serverFilename.trim() || saveToServerMutation.isPending}
+                    disabled={!serverFilename.trim() || saveToServerMutation.isPending || soundClips.length === 0}
                   >
                     {saveToServerMutation.isPending && (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
