@@ -294,72 +294,7 @@ export default function SoundLibrary() {
 
   return (
     <div className="space-y-6">
-      {/* Quick Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Controls</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Master Volume */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Master Volume</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">{masterVolume}%</span>
-            </div>
-            <Input
-              type="range"
-              min="0"
-              max="100"
-              value={masterVolume}
-              onChange={(e) => setMasterVolume(Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-
-          {/* Microphone Sensitivity */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Mic Sensitivity</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {micSensitivity < 33 ? "Low" : micSensitivity < 67 ? "Medium" : "High"}
-              </span>
-            </div>
-            <Input
-              type="range"
-              min="0"
-              max="100"
-              value={micSensitivity}
-              onChange={(e) => setMicSensitivity(Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex space-x-2">
-            <Button
-              onClick={stopAllSounds}
-              className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-              size="sm"
-            >
-              <Pause className="h-4 w-4 mr-1" />
-              Stop All
-            </Button>
-            <Button
-              variant="secondary"
-              className="flex-1"
-              size="sm"
-              onClick={() => {
-                if (soundClips.length > 0) {
-                  const randomClip = soundClips[Math.floor(Math.random() * soundClips.length)];
-                  playSound(randomClip.url, randomClip.id, masterVolume / 100);
-                }
-              }}
-            >
-              Test
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      
 
       {/* Sound Library */}
       <Card>
