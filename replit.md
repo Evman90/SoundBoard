@@ -30,6 +30,9 @@ Preferred communication style: Simple, everyday language.
 ✓ **Server Profiles on Main Page** - Moved server profile loading to main page with collapsible list of available profiles
 ✓ **Ultra-Fast Response Times** - Optimized all response delays for maximum speed: instant trigger responses, immediate default clips, faster recognition restarts
 ✓ **Improved Layout** - Moved "Load Soundboard" section below voice recognition for better visual hierarchy and renamed for clarity
+✓ **Maximum Microphone Sensitivity** - Disabled echo cancellation, noise suppression, and auto-gain control for maximum sensitivity
+✓ **Voice Controls Reorganized** - Moved detailed voice controls to Settings > Voice tab, simplified main page to status display
+✓ **Import/Export on Main Page** - Moved profile import and export options to bottom of main page for easier access
 
 
 ## System Architecture

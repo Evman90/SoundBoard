@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DefaultResponseSettings } from '@/components/default-response-settings';
-import { ProfileManager } from '@/components/profile-manager';
 import { VoiceControls } from '@/components/voice-controls';
 import { Settings as SettingsIcon, FileJson, Volume2, Mic } from 'lucide-react';
 
@@ -50,7 +49,16 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="profiles" className="mt-6">
-          <ProfileManager />
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600 dark:text-gray-300 text-center py-8">
+                Profile import and export options have been moved to the main page for easier access.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

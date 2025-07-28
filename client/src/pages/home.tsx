@@ -6,6 +6,7 @@ import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
 import { ServerProfileLoader } from "@/components/server-profile-loader";
 import { SessionWarning } from "@/components/session-warning";
+import { ProfileManager } from "@/components/profile-manager";
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
@@ -61,7 +62,7 @@ export default function Home() {
         <SessionWarning />
         
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="space-y-6">
             <VoiceRecognition />
             {/* Server Profile Loader */}
@@ -70,6 +71,11 @@ export default function Home() {
           <div>
             <SoundLibrary />
           </div>
+        </div>
+
+        {/* Profile Import/Export Options */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
+          <ProfileManager />
         </div>
       </div>
     </div>
