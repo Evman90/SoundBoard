@@ -291,9 +291,9 @@ export function useVoiceRecognition() {
           wordCountRef.current += words.length;
           console.log(`📊 Word count: ${wordCountRef.current} (added ${words.length} words)`);
           
-          // Restart recognition every 20 words to prevent stopping
-          if (wordCountRef.current >= 20) {
-            console.log("🔄 Restarting voice recognition after 20 words to prevent timeout");
+          // Restart recognition every 10 words to prevent stopping
+          if (wordCountRef.current >= 10) {
+            console.log("🔄 Restarting voice recognition after 10 words to prevent timeout");
             wordCountRef.current = 0; // Reset word count
             
             // Stop and restart recognition with a brief delay
@@ -352,7 +352,7 @@ export function useVoiceRecognition() {
                   wordCountRef.current = 0; // Reset word count on abort restart
                 } catch (e) {
                   console.error("Failed to restart after abort:", e);
-                  setErrorMessage("Speech recognition stopped. Click Start to try again.");
+                  setErrorMessage("Speech recognition stopped. If it stops responding, click Stop and Start again.");
                   setIsListening(false);
                 }
               }
@@ -428,8 +428,8 @@ export function useVoiceRecognition() {
                     } catch (e2) {
                       console.error("Failed fallback restart:", e2);
                       setErrorMessage(isMobile 
-                        ? "Voice recognition stopped automatically. Tap Stop and Start again." 
-                        : "Voice recognition stopped. Click Stop and Start again to continue."
+                        ? "Voice recognition stopped. If it stops responding, tap Stop and Start again." 
+                        : "Voice recognition stopped. If it stops responding, click Stop and Start again."
                       );
                       setIsListening(false);
                     }
