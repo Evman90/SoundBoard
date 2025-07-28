@@ -40,6 +40,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Sequential Playback** - Preview function plays each clip with 500ms gap between them and shows completion percentage
 ✓ **Dynamic Badge System** - Clips with triggers show "Assigned" badge, clips without triggers show "Default" badge based on actual trigger assignments
 ✓ **Auto-Restart After 10 Words** - Voice recognition automatically restarts every 10 words to prevent timeout when users talk for extended periods, with user guidance for manual restart if needed
+✓ **Persistent User Notice** - Added permanent info banner at top of main page instructing users how to manually restart voice recognition if it stops responding
 
 
 ## System Architecture

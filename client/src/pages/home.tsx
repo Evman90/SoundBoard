@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Settings, Moon } from "lucide-react";
+import { Settings, Moon, Info } from "lucide-react";
 import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
 import { ServerProfileLoader } from "@/components/server-profile-loader";
@@ -57,6 +57,18 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Voice Recognition Notice */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center space-x-3">
+            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Voice Recognition Tip:</strong> If voice recognition stops responding during long conversations, click Stop and Start again to restart it.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Main Content */}
