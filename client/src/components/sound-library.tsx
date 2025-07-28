@@ -85,7 +85,9 @@ export default function SoundLibrary() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/sound-clips/${id}`);
+      await apiRequest(`/api/sound-clips/${id}`, {
+        method: "DELETE",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sound-clips"] });

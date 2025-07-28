@@ -24,6 +24,9 @@ Preferred communication style: Simple, everyday language.
 ✓ **Default Clip Auto-Play** - Default clips automatically play when voice is detected but no trigger words match
 ✓ **Conversation Recording Removed** - Removed conversation recording feature due to browser microphone access limitations that prevent simultaneous voice recognition and recording
 ✓ **Streamlined Interface** - Integrated trigger word management directly into sound library with per-clip trigger assignment and deletion
+✓ **Voice Recognition Continuous Listening** - Fixed 10-second timeout issue with automatic restart functionality
+✓ **Profile Loading Fixed** - Resolved database schema mismatch preventing profile imports from working
+✓ **Delete Functionality Fixed** - Corrected delete button API call syntax for sound clip removal
 
 
 ## System Architecture
