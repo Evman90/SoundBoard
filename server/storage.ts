@@ -389,7 +389,7 @@ export class MemStorage implements IStorage {
         try {
           await this.createTriggerWord({
             phrase: profileTrigger.phrase,
-            soundClipId,
+            soundClipIds: [soundClipId],
             caseSensitive: profileTrigger.caseSensitive || false,
             enabled: profileTrigger.enabled !== false,
           });
@@ -436,52 +436,20 @@ export class MemStorage implements IStorage {
     // Clear all in-memory data
     this.soundClips.clear();
     this.triggerWords.clear();
-    this.conversationRecordings.clear();
-    this.currentConversationRecordingId = 1;
     this.settings = {
       id: 1,
-      defaultResponseEnabled: false,
+      defaultResponseEnabled: true,
       defaultResponseSoundClipIds: [],
       defaultResponseDelay: 2000,
       defaultResponseIndex: 0,
-      conversationRecordingEnabled: false,
     };
+    
+    // Reset ID counters
+    this.currentSoundClipId = 1;
+    this.currentTriggerWordId = 1;
   }
 
-  // Conversation recording methods
-  async getConversationRecordings(): Promise<ConversationRecording[]> {
-    return Array.from(this.conversationRecordings.values()).sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
-  }
 
-  async createConversationRecording(insertRecording: InsertConversationRecording): Promise<ConversationRecording> {
-    const id = this.currentConversationRecordingId++;
-    const recording: ConversationRecording = {
-      ...insertRecording,
-      id,
-      createdAt: new Date(),
-    };
-    this.conversationRecordings.set(id, recording);
-    console.log(`Created conversation recording: ${recording.originalName} (ID: ${id})`);
-    return recording;
-  }
-
-  async deleteConversationRecording(id: number): Promise<void> {
-    const recording = this.conversationRecordings.get(id);
-    if (recording) {
-      // Delete the file from uploads directory
-      try {
-        const filePath = path.join(process.cwd(), "uploads", recording.filename);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (error) {
-        console.warn(`Could not delete recording file ${recording.filename}:`, error);
-      }
-      this.conversationRecordings.delete(id);
-    }
-  }
 
   async saveProfileToServer(profileData: any, filename: string): Promise<void> {
     // Validate file size (10MB limit)
@@ -732,7 +700,7 @@ export class DatabaseStorage implements IStorage {
         try {
           await this.createTriggerWord({
             phrase: profileTrigger.phrase,
-            soundClipId,
+            soundClipIds: [soundClipId],
             caseSensitive: profileTrigger.caseSensitive || false,
             enabled: profileTrigger.enabled !== false,
           });
