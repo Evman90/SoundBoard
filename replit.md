@@ -39,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Preview All Clips** - Added preview button to sound library that plays all clips in sequence with progress tracking
 ✓ **Sequential Playback** - Preview function plays each clip with 500ms gap between them and shows completion percentage
 ✓ **Dynamic Badge System** - Clips with triggers show "Assigned" badge, clips without triggers show "Default" badge based on actual trigger assignments
+✓ **Auto-Restart After 20 Words** - Voice recognition automatically restarts every 20 words to prevent timeout when users talk for extended periods
 
 
 ## System Architecture

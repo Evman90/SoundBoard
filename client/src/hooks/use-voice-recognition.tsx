@@ -39,6 +39,7 @@ export function useVoiceRecognition() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const triggerCooldownRef = useRef<Set<string>>(new Set());
+  const wordCountRef = useRef<number>(0);
   const { playSound } = useAudioPlayer();
 
   const { data: triggerWords = [] } = useQuery<TriggerWord[]>({
@@ -285,6 +286,29 @@ export function useVoiceRecognition() {
           console.log("🔍 Checking for trigger words in:", finalTranscript);
           checkForTriggerWords(finalTranscript);
           
+          // Count words and restart every 20 words to prevent timeout
+          const words = finalTranscript.trim().split(/\s+/).filter(word => word.length > 0);
+          wordCountRef.current += words.length;
+          console.log(`📊 Word count: ${wordCountRef.current} (added ${words.length} words)`);
+          
+          // Restart recognition every 20 words to prevent stopping
+          if (wordCountRef.current >= 20) {
+            console.log("🔄 Restarting voice recognition after 20 words to prevent timeout");
+            wordCountRef.current = 0; // Reset word count
+            
+            // Stop and restart recognition with a brief delay
+            setTimeout(() => {
+              if (isListening && recognitionRef.current === recognition) {
+                try {
+                  recognition.stop();
+                  // The onend handler will automatically restart it
+                } catch (e) {
+                  console.error("Failed to restart recognition:", e);
+                }
+              }
+            }, 100);
+          }
+          
           // Mobile optimization: provide haptic feedback when trigger words are detected
           if (isMobile && navigator.vibrate) {
             // Check if any trigger word was matched (simplified check)
@@ -325,6 +349,7 @@ export function useVoiceRecognition() {
               if (isListening) {
                 try {
                   recognition.start();
+                  wordCountRef.current = 0; // Reset word count on abort restart
                 } catch (e) {
                   console.error("Failed to restart after abort:", e);
                   setErrorMessage("Speech recognition stopped. Click Start to try again.");
@@ -375,6 +400,7 @@ export function useVoiceRecognition() {
                 
                 newRecognition.start();
                 recognitionRef.current = newRecognition;
+                wordCountRef.current = 0; // Reset word count on restart
                 console.log("Successfully restarted speech recognition");
               } catch (e) {
                 console.error("Failed to restart recognition:", e);
@@ -397,6 +423,7 @@ export function useVoiceRecognition() {
                       
                       fallbackRecognition.start();
                       recognitionRef.current = fallbackRecognition;
+                      wordCountRef.current = 0; // Reset word count on fallback restart
                       console.log("Fallback restart successful");
                     } catch (e2) {
                       console.error("Failed fallback restart:", e2);
@@ -418,6 +445,7 @@ export function useVoiceRecognition() {
 
       recognition.start();
       recognitionRef.current = recognition;
+      wordCountRef.current = 0; // Reset word count when starting
       setIsListening(true);
       console.log("Voice recognition initialized successfully");
       return true;
