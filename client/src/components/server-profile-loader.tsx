@@ -57,7 +57,7 @@ export function ServerProfileLoader() {
             <CardTitle className="flex items-center justify-between text-base">
               <div className="flex items-center gap-2">
                 <Cloud className="h-4 w-4" />
-                Load from Server
+                Load Soundboard
                 {serverProfiles.length > 0 && (
                   <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                     {serverProfiles.length} profile{serverProfiles.length !== 1 ? 's' : ''}

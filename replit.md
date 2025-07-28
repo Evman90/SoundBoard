@@ -29,6 +29,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Delete Functionality Fixed** - Corrected delete button API call syntax for sound clip removal
 ✓ **Server Profiles on Main Page** - Moved server profile loading to main page with collapsible list of available profiles
 ✓ **Ultra-Fast Response Times** - Optimized all response delays for maximum speed: instant trigger responses, immediate default clips, faster recognition restarts
+✓ **Improved Layout** - Moved "Load Soundboard" section below voice recognition for better visual hierarchy and renamed for clarity
 
 
 ## System Architecture
