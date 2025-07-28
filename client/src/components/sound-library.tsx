@@ -24,6 +24,7 @@ export default function SoundLibrary() {
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const [previewProgress, setPreviewProgress] = useState(0);
+  const [currentPreviewClip, setCurrentPreviewClip] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -307,6 +308,7 @@ export default function SoundLibrary() {
     if (isPreviewPlaying) {
       setIsPreviewPlaying(false);
       setPreviewProgress(0);
+      setCurrentPreviewClip("");
       toast({
         title: "Preview Stopped",
         description: "Preview cancelled by user",
@@ -317,30 +319,41 @@ export default function SoundLibrary() {
     setIsPreviewPlaying(true);
     setPreviewProgress(0);
 
-    try {
-      for (let i = 0; i < soundClips.length; i++) {
-        setPreviewProgress(((i + 1) / soundClips.length) * 100);
-        
-        // Play current clip using the existing audio player
-        playSound(soundClips[i].url, soundClips[i].id, masterVolume / 100);
-        
-        // Wait for the clip to finish playing
-        await new Promise<void>((resolve) => {
-          const audio = new Audio(soundClips[i].url);
-          audio.volume = masterVolume / 100;
-          audio.onloadedmetadata = () => {
-            // Wait for the duration of the audio
-            setTimeout(() => {
-              resolve();
-            }, (audio.duration * 1000) + 500); // Add 500ms gap between clips
-          };
-          audio.onerror = () => resolve(); // Continue on error
+    const playClipSequentially = async (clipIndex: number): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        if (clipIndex >= soundClips.length || !isPreviewPlaying) {
+          resolve();
+          return;
+        }
+
+        const clip = soundClips[clipIndex];
+        setCurrentPreviewClip(clip.name);
+        const audio = new Audio(clip.url);
+        audio.volume = masterVolume / 100;
+
+        audio.addEventListener('loadeddata', () => {
+          audio.play().catch(reject);
         });
 
-        // Check if preview was cancelled
-        if (!isPreviewPlaying) break;
-      }
+        audio.addEventListener('ended', () => {
+          setPreviewProgress(((clipIndex + 1) / soundClips.length) * 100);
+          
+          // Wait 500ms between clips
+          setTimeout(() => {
+            playClipSequentially(clipIndex + 1).then(resolve).catch(reject);
+          }, 500);
+        });
 
+        audio.addEventListener('error', () => {
+          // Skip to next clip on error
+          playClipSequentially(clipIndex + 1).then(resolve).catch(reject);
+        });
+      });
+    };
+
+    try {
+      await playClipSequentially(0);
+      
       if (isPreviewPlaying) {
         toast({
           title: "Preview Complete",
@@ -356,6 +369,7 @@ export default function SoundLibrary() {
     } finally {
       setIsPreviewPlaying(false);
       setPreviewProgress(0);
+      setCurrentPreviewClip("");
     }
   };
 
@@ -391,7 +405,8 @@ export default function SoundLibrary() {
               {isPreviewPlaying && (
                 <div className="flex items-center space-x-2 text-sm">
                   <span className="text-green-600 dark:text-green-400">Playing:</span>
-                  <span className="font-medium">{Math.round(previewProgress)}%</span>
+                  <span className="font-medium truncate max-w-32">{currentPreviewClip}</span>
+                  <span className="text-gray-500">({Math.round(previewProgress)}%)</span>
                 </div>
               )}
               
