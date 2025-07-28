@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DefaultResponseSettings } from '@/components/default-response-settings';
 import { ProfileManager } from '@/components/profile-manager';
-import { Settings as SettingsIcon, FileJson, Volume2 } from 'lucide-react';
+import { VoiceControls } from '@/components/voice-controls';
+import { Settings as SettingsIcon, FileJson, Volume2, Mic } from 'lucide-react';
 
 export function SettingsPage() {
   return (
@@ -17,17 +18,25 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="audio" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="voice" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="voice" className="flex items-center gap-2">
+            <Mic className="h-4 w-4" />
+            Voice
+          </TabsTrigger>
           <TabsTrigger value="audio" className="flex items-center gap-2">
             <Volume2 className="h-4 w-4" />
-            Audio Settings
+            Audio
           </TabsTrigger>
           <TabsTrigger value="profiles" className="flex items-center gap-2">
             <FileJson className="h-4 w-4" />
             Profiles
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="voice" className="mt-6">
+          <VoiceControls />
+        </TabsContent>
 
         <TabsContent value="audio" className="mt-6">
           <Card>

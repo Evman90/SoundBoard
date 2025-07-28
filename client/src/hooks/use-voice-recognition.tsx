@@ -91,14 +91,18 @@ export function useVoiceRecognition() {
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       const audioConstraints = {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        // Mobile optimizations
-        ...(isMobile && {
-          sampleRate: 16000, // Lower sample rate for mobile
+        echoCancellation: false, // Disabled for maximum sensitivity
+        noiseSuppression: false, // Disabled for maximum sensitivity
+        autoGainControl: false, // Disabled for maximum sensitivity
+        // Maximum sensitivity settings
+        ...(isMobile ? {
+          sampleRate: 44100, // High sample rate for maximum quality
           channelCount: 1, // Mono audio for better mobile performance
-          latency: 0.2 // Higher latency tolerance for mobile
+          latency: 0.05 // Low latency for faster response
+        } : {
+          sampleRate: 48000, // Maximum sample rate for desktop
+          channelCount: 2, // Stereo for desktop
+          latency: 0.01 // Minimum latency for desktop
         })
       };
       
@@ -112,7 +116,8 @@ export function useVoiceRecognition() {
       audioContextRef.current = audioContext;
 
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 2048; // Higher resolution for better sensitivity
+      analyser.smoothingTimeConstant = 0.1; // Lower smoothing for faster response
       analyserRef.current = analyser;
 
       const source = audioContext.createMediaStreamSource(stream);
