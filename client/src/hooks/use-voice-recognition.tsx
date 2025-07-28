@@ -206,14 +206,12 @@ export function useVoiceRecognition() {
           triggerCooldownRef.current.add(cooldownKey);
           setTimeout(() => {
             triggerCooldownRef.current.delete(cooldownKey);
-          }, 2000); // 2 second cooldown
+          }, 1000); // 1 second cooldown for faster responses
 
-          // Play random default clip after short delay
-          setTimeout(() => {
-            const randomClip = defaultClips[Math.floor(Math.random() * defaultClips.length)];
-            console.log("🔄 No trigger matched, playing random default clip:", randomClip.name);
-            playSound(randomClip.url, randomClip.id, 0.75);
-          }, 500); // Short delay before playing default clip
+          // Play random default clip immediately
+          const randomClip = defaultClips[Math.floor(Math.random() * defaultClips.length)];
+          console.log("🔄 No trigger matched, playing random default clip:", randomClip.name);
+          playSound(randomClip.url, randomClip.id, 0.75);
         }
       }
     }
@@ -343,7 +341,7 @@ export function useVoiceRecognition() {
           console.log("Automatically restarting speech recognition to maintain continuous listening...");
           
           // Different restart strategies for mobile vs desktop
-          const restartDelay = isMobile ? 1000 : 500; // Longer delay on mobile
+          const restartDelay = isMobile ? 300 : 100; // Minimal delay for fastest restart
           
           setTimeout(() => {
             // Double-check we should still be listening
@@ -371,8 +369,8 @@ export function useVoiceRecognition() {
               } catch (e) {
                 console.error("Failed to restart recognition:", e);
                 
-                // Fallback retry with longer delay
-                const fallbackDelay = isMobile ? 3000 : 2000;
+                // Fallback retry with minimal delay
+                const fallbackDelay = isMobile ? 500 : 200;
                 setTimeout(() => {
                   if (isListening && recognitionRef.current === recognition) {
                     try {

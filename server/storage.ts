@@ -53,7 +53,7 @@ export class MemStorage implements IStorage {
       id: 1,
       defaultResponseEnabled: true,
       defaultResponseSoundClipIds: [],
-      defaultResponseDelay: 2000,
+      defaultResponseDelay: 0,
       defaultResponseIndex: 0,
     };
     this.currentSoundClipId = 1;
@@ -440,7 +440,7 @@ export class MemStorage implements IStorage {
       id: 1,
       defaultResponseEnabled: true,
       defaultResponseSoundClipIds: [],
-      defaultResponseDelay: 2000,
+      defaultResponseDelay: 0,
       defaultResponseIndex: 0,
     };
     
@@ -564,7 +564,7 @@ export class DatabaseStorage implements IStorage {
       const defaultSettings = {
         defaultResponseEnabled: false,
         defaultResponseSoundClipIds: [],
-        defaultResponseDelay: 2000,
+        defaultResponseDelay: 0,
         defaultResponseIndex: 0,
       };
       const created = await this.db.insert(settings).values(defaultSettings).returning();
@@ -752,7 +752,7 @@ export class DatabaseStorage implements IStorage {
     await this.updateSettings({
       defaultResponseEnabled: false,
       defaultResponseSoundClipIds: [],
-      defaultResponseDelay: 2000,
+      defaultResponseDelay: 0,
       defaultResponseIndex: 0,
     });
   }
