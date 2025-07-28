@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Adaptive Microphone Settings** - Mic sensitivity dynamically adjusts audio constraints, sample rates, and analyzer settings for optimal performance
 ✓ **Preview All Clips** - Added preview button to sound library that plays all clips in sequence with progress tracking
 ✓ **Sequential Playback** - Preview function plays each clip with 500ms gap between them and shows completion percentage
+✓ **Dynamic Badge System** - Clips with triggers show "Assigned" badge, clips without triggers show "Default" badge based on actual trigger assignments
 
 
 ## System Architecture

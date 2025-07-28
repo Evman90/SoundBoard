@@ -584,15 +584,19 @@ export default function SoundLibrary() {
                       <h4 className="font-medium text-gray-900 dark:text-white text-sm">
                         {clip.name}
                       </h4>
-                      {clip.isDefault ? (
-                        <Badge variant="outline" className="text-xs px-2 py-0.5 text-blue-600 border-blue-300 bg-blue-50 dark:text-blue-400 dark:border-blue-600 dark:bg-blue-900/20">
-                          Default
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs px-2 py-0.5 text-green-600 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-600 dark:bg-green-900/20">
-                          Assigned
-                        </Badge>
-                      )}
+                      {(() => {
+                        const triggers = getSoundTriggers(clip.id);
+                        const hasTriggersAssigned = triggers.length > 0;
+                        return hasTriggersAssigned ? (
+                          <Badge variant="outline" className="text-xs px-2 py-0.5 text-green-600 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-600 dark:bg-green-900/20">
+                            Assigned
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs px-2 py-0.5 text-blue-600 border-blue-300 bg-blue-50 dark:text-blue-400 dark:border-blue-600 dark:bg-blue-900/20">
+                            Default
+                          </Badge>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center space-x-1">
                       {currentlyPlaying === clip.id ? (
