@@ -27,6 +27,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Voice Recognition Continuous Listening** - Fixed 10-second timeout issue with automatic restart functionality
 ✓ **Profile Loading Fixed** - Resolved database schema mismatch preventing profile imports from working
 ✓ **Delete Functionality Fixed** - Corrected delete button API call syntax for sound clip removal
+✓ **Server Profiles on Main Page** - Moved server profile loading to main page with collapsible list of available profiles
 
 
 ## System Architecture

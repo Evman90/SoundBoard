@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, Moon } from "lucide-react";
 import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
-
-
+import { ServerProfileLoader } from "@/components/server-profile-loader";
 import { SessionWarning } from "@/components/session-warning";
 
 export default function Home() {
@@ -60,6 +59,11 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <SessionWarning />
+        
+        {/* Server Profile Loader */}
+        <div className="mb-6">
+          <ServerProfileLoader />
+        </div>
         
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
