@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw, Zap, X } from "lucide-react";
+import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw, Zap, X, PlayCircle, StopCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
@@ -22,6 +22,8 @@ export default function SoundLibrary() {
   const [selectedSoundForTrigger, setSelectedSoundForTrigger] = useState<SoundClip | null>(null);
   const [triggerPhrase, setTriggerPhrase] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [previewProgress, setPreviewProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -292,6 +294,71 @@ export default function SoundLibrary() {
     });
   };
 
+  const playAllClipsPreview = async () => {
+    if (soundClips.length === 0) {
+      toast({
+        title: "No Clips",
+        description: "Add some sound clips first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isPreviewPlaying) {
+      setIsPreviewPlaying(false);
+      setPreviewProgress(0);
+      toast({
+        title: "Preview Stopped",
+        description: "Preview cancelled by user",
+      });
+      return;
+    }
+
+    setIsPreviewPlaying(true);
+    setPreviewProgress(0);
+
+    try {
+      for (let i = 0; i < soundClips.length; i++) {
+        setPreviewProgress(((i + 1) / soundClips.length) * 100);
+        
+        // Play current clip using the existing audio player
+        playSound(soundClips[i].url, soundClips[i].id, masterVolume / 100);
+        
+        // Wait for the clip to finish playing
+        await new Promise<void>((resolve) => {
+          const audio = new Audio(soundClips[i].url);
+          audio.volume = masterVolume / 100;
+          audio.onloadedmetadata = () => {
+            // Wait for the duration of the audio
+            setTimeout(() => {
+              resolve();
+            }, (audio.duration * 1000) + 500); // Add 500ms gap between clips
+          };
+          audio.onerror = () => resolve(); // Continue on error
+        });
+
+        // Check if preview was cancelled
+        if (!isPreviewPlaying) break;
+      }
+
+      if (isPreviewPlaying) {
+        toast({
+          title: "Preview Complete",
+          description: `Played ${soundClips.length} sound clips in sequence`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Preview Error",
+        description: "An error occurred during preview",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPreviewPlaying(false);
+      setPreviewProgress(0);
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -302,6 +369,32 @@ export default function SoundLibrary() {
           <CardTitle className="flex items-center justify-between">
             Sound Library
             <div className="flex space-x-2">
+              <Button
+                onClick={playAllClipsPreview}
+                className={`${isPreviewPlaying ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"} text-white`}
+                size="sm"
+                disabled={soundClips.length === 0}
+              >
+                {isPreviewPlaying ? (
+                  <>
+                    <StopCircle className="h-4 w-4 mr-1" />
+                    Stop Preview
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="h-4 w-4 mr-1" />
+                    Preview All
+                  </>
+                )}
+              </Button>
+              
+              {isPreviewPlaying && (
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-green-600 dark:text-green-400">Playing:</span>
+                  <span className="font-medium">{Math.round(previewProgress)}%</span>
+                </div>
+              )}
+              
               <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
                 <DialogTrigger asChild>
                   <Button
