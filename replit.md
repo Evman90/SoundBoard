@@ -33,6 +33,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Maximum Microphone Sensitivity** - Disabled echo cancellation, noise suppression, and auto-gain control for maximum sensitivity
 ✓ **Voice Controls Reorganized** - Moved detailed voice controls to Settings > Voice tab, simplified main page to status display
 ✓ **Import/Export on Main Page** - Moved profile import and export options to bottom of main page for easier access
+✓ **Clean Interface** - Removed session storage warning message for cleaner main page appearance
 
 
 ## System Architecture
