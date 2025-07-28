@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ export default function SoundLibrary() {
   const [previewProgress, setPreviewProgress] = useState(0);
   const [currentPreviewClip, setCurrentPreviewClip] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewCancelRef = useRef<boolean>(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { playSound, stopSound, currentlyPlaying, stopAllSounds } = useAudioPlayer();
@@ -295,7 +296,7 @@ export default function SoundLibrary() {
     });
   };
 
-  const playAllClipsPreview = async () => {
+  const playAllClipsPreview = useCallback(async () => {
     if (soundClips.length === 0) {
       toast({
         title: "No Clips",
@@ -306,6 +307,7 @@ export default function SoundLibrary() {
     }
 
     if (isPreviewPlaying) {
+      previewCancelRef.current = true;
       setIsPreviewPlaying(false);
       setPreviewProgress(0);
       setCurrentPreviewClip("");
@@ -318,49 +320,77 @@ export default function SoundLibrary() {
 
     setIsPreviewPlaying(true);
     setPreviewProgress(0);
+    previewCancelRef.current = false;
 
-    const playClipSequentially = async (clipIndex: number): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        if (clipIndex >= soundClips.length || !isPreviewPlaying) {
-          resolve();
-          return;
-        }
+    try {
+      for (let i = 0; i < soundClips.length; i++) {
+        if (previewCancelRef.current) break;
 
-        const clip = soundClips[clipIndex];
+        const clip = soundClips[i];
         setCurrentPreviewClip(clip.name);
+        setPreviewProgress(((i + 1) / soundClips.length) * 100);
+
+        // Create and play audio
         const audio = new Audio(clip.url);
         audio.volume = masterVolume / 100;
 
-        audio.addEventListener('loadeddata', () => {
-          audio.play().catch(reject);
+        await new Promise<void>((resolve, reject) => {
+          let hasResolved = false;
+
+          const cleanup = () => {
+            if (!hasResolved) {
+              hasResolved = true;
+              audio.removeEventListener('ended', onEnded);
+              audio.removeEventListener('error', onError);
+              audio.removeEventListener('canplaythrough', onCanPlay);
+            }
+          };
+
+          const onEnded = () => {
+            cleanup();
+            resolve();
+          };
+
+          const onError = () => {
+            cleanup();
+            console.warn(`Failed to play clip: ${clip.name}`);
+            resolve(); // Continue to next clip
+          };
+
+          const onCanPlay = () => {
+            if (!previewCancelRef.current) {
+              audio.play().catch(() => {
+                cleanup();
+                resolve();
+              });
+            } else {
+              cleanup();
+              resolve();
+            }
+          };
+
+          audio.addEventListener('ended', onEnded);
+          audio.addEventListener('error', onError);
+          audio.addEventListener('canplaythrough', onCanPlay);
+
+          // Start loading the audio
+          audio.load();
         });
 
-        audio.addEventListener('ended', () => {
-          setPreviewProgress(((clipIndex + 1) / soundClips.length) * 100);
-          
-          // Wait 500ms between clips
-          setTimeout(() => {
-            playClipSequentially(clipIndex + 1).then(resolve).catch(reject);
-          }, 500);
-        });
+        // Add delay between clips
+        if (i < soundClips.length - 1 && !previewCancelRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
 
-        audio.addEventListener('error', () => {
-          // Skip to next clip on error
-          playClipSequentially(clipIndex + 1).then(resolve).catch(reject);
-        });
-      });
-    };
-
-    try {
-      await playClipSequentially(0);
-      
-      if (isPreviewPlaying) {
+      if (!previewCancelRef.current) {
         toast({
           title: "Preview Complete",
           description: `Played ${soundClips.length} sound clips in sequence`,
         });
       }
     } catch (error) {
+      console.error('Preview error:', error);
       toast({
         title: "Preview Error",
         description: "An error occurred during preview",
@@ -370,8 +400,9 @@ export default function SoundLibrary() {
       setIsPreviewPlaying(false);
       setPreviewProgress(0);
       setCurrentPreviewClip("");
+      previewCancelRef.current = false;
     }
-  };
+  }, [soundClips, masterVolume, isPreviewPlaying, toast]);
 
   return (
     <div className="space-y-6">
