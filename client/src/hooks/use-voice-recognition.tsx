@@ -90,19 +90,23 @@ export function useVoiceRecognition() {
       // Detect mobile for optimized audio settings
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
+      // Get mic sensitivity from localStorage (0-100, default 100 for maximum)
+      const micSensitivity = parseInt(localStorage.getItem('micSensitivity') || '100', 10);
+      const useMaxSensitivity = micSensitivity >= 80; // Use max settings when >= 80%
+      
       const audioConstraints = {
-        echoCancellation: false, // Disabled for maximum sensitivity
-        noiseSuppression: false, // Disabled for maximum sensitivity
-        autoGainControl: false, // Disabled for maximum sensitivity
-        // Maximum sensitivity settings
+        echoCancellation: !useMaxSensitivity, // Disabled for high sensitivity
+        noiseSuppression: !useMaxSensitivity, // Disabled for high sensitivity  
+        autoGainControl: !useMaxSensitivity, // Disabled for high sensitivity
+        // Adaptive settings based on sensitivity
         ...(isMobile ? {
-          sampleRate: 44100, // High sample rate for maximum quality
+          sampleRate: useMaxSensitivity ? 44100 : 16000,
           channelCount: 1, // Mono audio for better mobile performance
-          latency: 0.05 // Low latency for faster response
+          latency: useMaxSensitivity ? 0.05 : 0.2
         } : {
-          sampleRate: 48000, // Maximum sample rate for desktop
-          channelCount: 2, // Stereo for desktop
-          latency: 0.01 // Minimum latency for desktop
+          sampleRate: useMaxSensitivity ? 48000 : 24000,
+          channelCount: useMaxSensitivity ? 2 : 1,
+          latency: useMaxSensitivity ? 0.01 : 0.1
         })
       };
       
@@ -116,8 +120,9 @@ export function useVoiceRecognition() {
       audioContextRef.current = audioContext;
 
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048; // Higher resolution for better sensitivity
-      analyser.smoothingTimeConstant = 0.1; // Lower smoothing for faster response
+      // Adaptive settings based on mic sensitivity
+      analyser.fftSize = useMaxSensitivity ? 2048 : 1024; // Higher resolution for high sensitivity
+      analyser.smoothingTimeConstant = useMaxSensitivity ? 0.1 : 0.3; // Lower smoothing for high sensitivity
       analyserRef.current = analyser;
 
       const source = audioContext.createMediaStreamSource(stream);

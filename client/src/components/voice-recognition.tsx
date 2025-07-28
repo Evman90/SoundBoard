@@ -119,7 +119,7 @@ export default function VoiceRecognition() {
                 {audioLevel}dB
               </span>
             </div>
-            <AudioVisualizer audioLevel={audioLevel} />
+            <AudioVisualizer audioLevel={audioLevel} isListening={isListening} />
           </div>
         )}
 

@@ -6,6 +6,7 @@ import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
 import { ServerProfileLoader } from "@/components/server-profile-loader";
 import { ProfileManager } from "@/components/profile-manager";
+import { AudioControls } from "@/components/audio-controls";
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
@@ -65,8 +66,9 @@ export default function Home() {
             {/* Server Profile Loader */}
             <ServerProfileLoader />
           </div>
-          <div>
+          <div className="space-y-6">
             <SoundLibrary />
+            <AudioControls />
           </div>
         </div>
 
