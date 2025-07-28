@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Ultra-Fast Response Times** - Optimized all response delays for maximum speed: instant trigger responses, immediate default clips, faster recognition restarts
 ✓ **Improved Layout** - Moved "Load Soundboard" section below voice recognition for better visual hierarchy and renamed for clarity
 ✓ **Maximum Microphone Sensitivity** - Disabled echo cancellation, noise suppression, and auto-gain control for maximum sensitivity
-✓ **Voice Controls Reorganized** - Moved ALL voice controls to Settings > Voice tab, main page shows status only with instructions to visit Settings
+✓ **Voice Controls Reorganized** - Moved detailed voice controls to Settings > Voice tab, simplified main page to status display
 ✓ **Import/Export on Main Page** - Moved profile import and export options to bottom of main page for easier access
 ✓ **Clean Interface** - Removed session storage warning message for cleaner main page appearance
 
