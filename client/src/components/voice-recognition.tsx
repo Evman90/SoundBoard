@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Activity, Smartphone } from "lucide-react";
+import { Activity, Smartphone, MicOff } from "lucide-react";
 import { useVoiceRecognition } from "@/hooks/use-voice-recognition";
 import AudioVisualizer from "@/components/audio-visualizer";
 
@@ -10,9 +9,6 @@ export default function VoiceRecognition() {
   const {
     isListening,
     transcript,
-    startListening,
-    stopListening,
-    clearTranscript,
     isSupported,
     audioLevel,
     errorMessage
@@ -38,14 +34,6 @@ export default function VoiceRecognition() {
       setStatus("Ready to Listen");
     }
   }, [isListening, errorMessage]);
-
-  const handleToggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  };
 
   if (!isSupported) {
     return (
@@ -87,28 +75,7 @@ export default function VoiceRecognition() {
           </div>
         )}
 
-        {/* Quick Toggle */}
-        <Button
-          onClick={handleToggleListening}
-          size="lg"
-          className={`w-full h-12 text-base font-semibold transition-all duration-200 ${
-            isListening 
-              ? "bg-red-500 hover:bg-red-600 text-white shadow-lg" 
-              : "bg-green-500 hover:bg-green-600 text-white"
-          }`}
-        >
-          {isListening ? (
-            <>
-              <MicOff className="h-5 w-5 mr-2" />
-              Stop Listening
-            </>
-          ) : (
-            <>
-              <Mic className="h-5 w-5 mr-2" />
-              Start Listening
-            </>
-          )}
-        </Button>
+
 
         {/* Compact Audio Visualizer */}
         {isListening && (
@@ -119,7 +86,7 @@ export default function VoiceRecognition() {
                 {audioLevel}dB
               </span>
             </div>
-            <AudioVisualizer audioLevel={audioLevel} />
+            <AudioVisualizer audioLevel={audioLevel} isListening={isListening} />
           </div>
         )}
 
@@ -136,7 +103,7 @@ export default function VoiceRecognition() {
         {/* Settings Note */}
         <div className="text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            For detailed controls and transcript, visit Settings
+            To start/stop listening and access detailed controls, visit Settings → Voice
           </p>
         </div>
       </CardContent>
