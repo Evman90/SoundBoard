@@ -145,37 +145,12 @@ export default function SoundLibrary() {
     if (!file) return;
 
     console.log("Uploading file:", file.name, file.size, file.type);
-    
     uploadMutation.mutate(file);
-    const audio = new Audio();
-    audio.src = URL.createObjectURL(file);
     
-    const handleMetadata = () => {
-      formData.append("duration", audio.duration.toString());
-      console.log("Audio duration:", audio.duration);
-      uploadMutation.mutate(formData);
-      URL.revokeObjectURL(audio.src);
-    };
-
-    const handleError = () => {
-      console.log("Could not load audio metadata, using default duration");
-      formData.append("duration", "0");
-      uploadMutation.mutate(formData);
-      URL.revokeObjectURL(audio.src);
-    };
-    
-    audio.addEventListener('loadedmetadata', handleMetadata);
-    audio.addEventListener('error', handleError);
-    
-    // Fallback timeout in case metadata doesn't load
-    setTimeout(() => {
-      if (audio.readyState === 0) {
-        console.log("Metadata loading timeout, proceeding without duration");
-        formData.append("duration", "0");
-        uploadMutation.mutate(formData);
-        URL.revokeObjectURL(audio.src);
-      }
-    }, 3000);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const saveRecording = async () => {
@@ -190,41 +165,18 @@ export default function SoundLibrary() {
 
     console.log("Saving recorded audio:", recordingName);
     
-    const formData = new FormData();
-    formData.append("audio", audioBlob, `${recordingName}.webm`);
-    formData.append("name", recordingName);
+    // Create a File object from the blob
+    const recordingFile = new File([audioBlob], `${recordingName}.webm`, {
+      type: audioBlob.type || 'audio/webm'
+    });
     
-    // Get audio duration from the recorded blob
-    const audio = new Audio();
-    audio.src = audioUrl!;
+    // Upload the recording file
+    uploadMutation.mutate(recordingFile);
     
-    const handleMetadata = () => {
-      const duration = isFinite(audio.duration) ? audio.duration : recordingTime;
-      formData.append("duration", duration.toString());
-      console.log("Recording duration:", duration);
-      uploadMutation.mutate(formData);
-      
-      // Reset recording state
-      clearRecording();
-      setRecordingName("");
-      setShowRecordDialog(false);
-      URL.revokeObjectURL(audio.src);
-    };
-
-    const handleError = () => {
-      console.log("Could not load recording metadata, using recorded time");
-      formData.append("duration", recordingTime.toString());
-      uploadMutation.mutate(formData);
-      
-      // Reset recording state
-      clearRecording();
-      setRecordingName("");
-      setShowRecordDialog(false);
-      URL.revokeObjectURL(audio.src);
-    };
-    
-    audio.addEventListener('loadedmetadata', handleMetadata);
-    audio.addEventListener('error', handleError);
+    // Reset recording state
+    clearRecording();
+    setRecordingName("");
+    setShowRecordDialog(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -551,7 +503,7 @@ export default function SoundLibrary() {
                 <div
                   key={clip.id}
                   className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border transition-all ${
-                    currentlyPlaying === clip.id
+                    isPlaying
                       ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20"
                       : "border-gray-200 dark:border-gray-600 hover:shadow-md"
                   }`}
@@ -576,7 +528,7 @@ export default function SoundLibrary() {
                       })()}
                     </div>
                     <div className="flex items-center space-x-1">
-                      {currentlyPlaying === clip.id ? (
+                      {isPlaying ? (
                         <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
                           PLAYING
                         </span>
@@ -585,13 +537,13 @@ export default function SoundLibrary() {
                         variant="ghost"
                         size="sm"
                         onClick={() => 
-                          currentlyPlaying === clip.id 
+                          isPlaying 
                             ? stopSound() 
-                            : playSound(clip.url, clip.id, masterVolume / 100)
+                            : playSound(clip.filename)
                         }
                         className="text-primary hover:text-primary-dark"
                       >
-                        {currentlyPlaying === clip.id ? (
+                        {isPlaying ? (
                           <Pause className="h-4 w-4" />
                         ) : (
                           <Play className="h-4 w-4" />
@@ -703,7 +655,7 @@ export default function SoundLibrary() {
                     );
                   })()}
                   
-                  {currentlyPlaying === clip.id && (
+                  {isPlaying && (
                     <div className="mt-2">
                       <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1">
                         <div className="bg-orange-500 h-1 rounded-full animate-pulse" style={{ width: "45%" }} />
