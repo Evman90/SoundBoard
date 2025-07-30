@@ -41,6 +41,7 @@ export function useVoiceRecognition() {
   const streamRef = useRef<MediaStream | null>(null);
   const triggerCooldownRef = useRef<Set<string>>(new Set());
   const wordCountRef = useRef<number>(0);
+  const manuallyStoppedRef = useRef<boolean>(false);
   const { playSound } = useAudioPlayerBrowser();
 
   const { data: triggerWords = [] } = useQuery<TriggerWord[]>({
@@ -364,8 +365,8 @@ export function useVoiceRecognition() {
       recognition.onend = () => {
         console.log("Speech recognition ended");
         
-        // Only restart if we're still supposed to be listening
-        if (isListening) {
+        // Only restart if we're still supposed to be listening and not manually stopped
+        if (isListening && !manuallyStoppedRef.current) {
           console.log("Automatically restarting speech recognition to maintain continuous listening...");
           
           // Different restart strategies for mobile vs desktop
@@ -518,6 +519,7 @@ export function useVoiceRecognition() {
       recognition.start();
       recognitionRef.current = recognition;
       wordCountRef.current = 0; // Reset word count when starting
+      manuallyStoppedRef.current = false; // Reset manual stop flag
       setIsListening(true);
       console.log("Voice recognition initialized successfully");
       return true;
@@ -531,6 +533,9 @@ export function useVoiceRecognition() {
 
   const stopListening = useCallback(() => {
     console.log("Stopping voice recognition...");
+    
+    // Mark as manually stopped to prevent auto-restart
+    manuallyStoppedRef.current = true;
     
     // Stop speech recognition first
     if (recognitionRef.current) {
