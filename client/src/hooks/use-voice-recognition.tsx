@@ -364,8 +364,8 @@ export function useVoiceRecognition() {
       recognition.onend = () => {
         console.log("Speech recognition ended");
         
-        // Only restart if we're still supposed to be listening and haven't been manually stopped
-        if (isListening && recognitionRef.current === recognition) {
+        // Only restart if we're still supposed to be listening
+        if (isListening) {
           console.log("Automatically restarting speech recognition to maintain continuous listening...");
           
           // Different restart strategies for mobile vs desktop
@@ -373,7 +373,7 @@ export function useVoiceRecognition() {
           
           setTimeout(() => {
             // Double-check we should still be listening
-            if (isListening && recognitionRef.current === recognition) {
+            if (isListening) {
               try {
                 // Create new recognition instance to avoid any state issues
                 const newRecognition = new SpeechRecognition();
@@ -385,10 +385,118 @@ export function useVoiceRecognition() {
                   newRecognition.maxAlternatives = 1;
                 }
                 
-                // Copy all the event handlers
-                newRecognition.onstart = recognition.onstart;
-                newRecognition.onresult = recognition.onresult;
-                newRecognition.onerror = recognition.onerror;
+                // Set up event handlers for the new instance
+                newRecognition.onstart = () => {
+                  console.log("Speech recognition started");
+                  setErrorMessage("");
+                };
+
+                newRecognition.onresult = (event: SpeechRecognitionEvent) => {
+                  let finalTranscript = "";
+                  let interimTranscript = "";
+
+                  for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                      finalTranscript += transcript;
+                    } else {
+                      interimTranscript += transcript;
+                    }
+                  }
+
+                  const fullTranscript = finalTranscript || interimTranscript;
+                  setTranscript(fullTranscript);
+                  console.log("🎤 Speech detected:", fullTranscript);
+                  console.log("📝 Final transcript:", finalTranscript);
+                  console.log("⏳ Interim transcript:", interimTranscript);
+
+                  if (finalTranscript) {
+                    console.log("🔍 Checking for trigger words in:", finalTranscript);
+                    checkForTriggerWords(finalTranscript);
+                    
+                    // Count words and restart every 10 words to prevent timeout
+                    const words = finalTranscript.trim().split(/\s+/).filter(word => word.length > 0);
+                    wordCountRef.current += words.length;
+                    console.log(`📊 Word count: ${wordCountRef.current} (added ${words.length} words)`);
+                    
+                    // Restart recognition every 10 words to prevent stopping
+                    if (wordCountRef.current >= 10) {
+                      console.log("🔄 Restarting voice recognition after 10 words to prevent timeout");
+                      wordCountRef.current = 0; // Reset word count
+                      
+                      // Stop and restart recognition with a brief delay
+                      setTimeout(() => {
+                        if (isListening) {
+                          try {
+                            newRecognition.stop();
+                            // The onend handler will automatically restart it
+                          } catch (e) {
+                            console.error("Failed to restart recognition:", e);
+                          }
+                        }
+                      }, 100);
+                    }
+                    
+                    // Mobile optimization: provide haptic feedback when trigger words are detected
+                    if (isMobile && navigator.vibrate) {
+                      // Check if any trigger word was matched (simplified check)
+                      const lowerText = finalTranscript.toLowerCase();
+                      const hasMatch = triggerWords.some(trigger => 
+                        trigger.enabled && lowerText.includes(trigger.caseSensitive ? trigger.phrase : trigger.phrase.toLowerCase())
+                      );
+                      if (hasMatch) {
+                        navigator.vibrate(200); // Trigger detected vibration
+                      }
+                    }
+                  }
+                };
+
+                newRecognition.onerror = (event) => {
+                  console.error("Speech recognition error:", event.error, event);
+                  switch (event.error) {
+                    case "not-allowed":
+                      setErrorMessage("Microphone permission denied. Please allow microphone access.");
+                      setIsListening(false);
+                      break;
+                    case "no-speech":
+                      console.log("No speech detected, continuing to listen...");
+                      // Don't stop listening for no-speech, it's normal
+                      break;
+                    case "audio-capture":
+                      setErrorMessage("Audio capture failed. Check your microphone.");
+                      setIsListening(false);
+                      break;
+                    case "network":
+                      setErrorMessage("Network error. Check your internet connection.");
+                      setIsListening(false);
+                      break;
+                    case "aborted":
+                      console.log("Speech recognition was aborted, attempting to restart...");
+                      // Try to restart after a brief delay
+                      setTimeout(() => {
+                        if (isListening) {
+                          try {
+                            newRecognition.start();
+                            wordCountRef.current = 0; // Reset word count on abort restart
+                          } catch (e) {
+                            console.error("Failed to restart after abort:", e);
+                            setErrorMessage("Speech recognition stopped. If it stops responding, click Stop and Start again.");
+                            setIsListening(false);
+                          }
+                        }
+                      }, 500);
+                      break;
+                    default:
+                      console.log(`Speech recognition error: ${event.error}, attempting to continue...`);
+                      // For other errors, try to continue unless critical
+                      if (event.error === "service-not-allowed" || event.error === "language-not-supported") {
+                        setErrorMessage(`Speech recognition error: ${event.error}`);
+                        setIsListening(false);
+                      }
+                  }
+                };
+
+                // Recursive onend handler for continuous restart
                 newRecognition.onend = recognition.onend;
                 
                 newRecognition.start();
@@ -397,42 +505,13 @@ export function useVoiceRecognition() {
                 console.log("Successfully restarted speech recognition");
               } catch (e) {
                 console.error("Failed to restart recognition:", e);
-                
-                // Fallback retry with minimal delay
-                const fallbackDelay = isMobile ? 500 : 200;
-                setTimeout(() => {
-                  if (isListening && recognitionRef.current === recognition) {
-                    try {
-                      const fallbackRecognition = new SpeechRecognition();
-                      fallbackRecognition.continuous = !isMobile;
-                      fallbackRecognition.interimResults = true;
-                      fallbackRecognition.lang = "en-US";
-                      
-                      // Copy handlers again
-                      fallbackRecognition.onstart = recognition.onstart;
-                      fallbackRecognition.onresult = recognition.onresult;
-                      fallbackRecognition.onerror = recognition.onerror;
-                      fallbackRecognition.onend = recognition.onend;
-                      
-                      fallbackRecognition.start();
-                      recognitionRef.current = fallbackRecognition;
-                      wordCountRef.current = 0; // Reset word count on fallback restart
-                      console.log("Fallback restart successful");
-                    } catch (e2) {
-                      console.error("Failed fallback restart:", e2);
-                      setErrorMessage(isMobile 
-                        ? "Voice recognition stopped. If it stops responding, tap Stop and Start again." 
-                        : "Voice recognition stopped. If it stops responding, click Stop and Start again."
-                      );
-                      setIsListening(false);
-                    }
-                  }
-                }, fallbackDelay);
+                setErrorMessage("Voice recognition stopped. If it stops responding, click Stop and Start again.");
+                setIsListening(false);
               }
             }
           }, restartDelay);
         } else {
-          console.log("Speech recognition ended - not restarting (manually stopped or different instance)");
+          console.log("Speech recognition ended - not restarting (manually stopped)");
         }
       };
 
