@@ -345,14 +345,33 @@ class BrowserStorage implements IBrowserStorage {
   }
 
   async updateSettings(settings: Partial<Omit<Settings, 'id'>>): Promise<Settings> {
-    const store = await this.getStore(STORES.SETTINGS, 'readwrite');
-    const existing = await this.getSettings();
-    const updated = { ...existing, ...settings };
+    const db = await this.getDB();
     
     return new Promise((resolve, reject) => {
-      const request = store.put(updated);
-      request.onsuccess = () => resolve(updated);
-      request.onerror = () => reject(request.error);
+      const transaction = db.transaction([STORES.SETTINGS], 'readwrite');
+      const store = transaction.objectStore(STORES.SETTINGS);
+      
+      // First get existing settings
+      const getRequest = store.get(1);
+      getRequest.onsuccess = () => {
+        const existing = getRequest.result || {
+          id: 1,
+          defaultResponseEnabled: true,
+          defaultResponseSoundClipIds: [],
+          defaultResponseDelay: 0,
+          defaultResponseIndex: 0,
+        };
+        
+        const updated = { ...existing, ...settings };
+        
+        // Now update with the same transaction
+        const putRequest = store.put(updated);
+        putRequest.onsuccess = () => resolve(updated);
+        putRequest.onerror = () => reject(putRequest.error);
+      };
+      
+      getRequest.onerror = () => reject(getRequest.error);
+      transaction.onerror = () => reject(transaction.error);
     });
   }
 
