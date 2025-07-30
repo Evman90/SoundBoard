@@ -1,12 +1,40 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { browserStorage } from "@/lib/browser-storage";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+// Browser storage query function
+async function queryFn({ queryKey }: { queryKey: string[] }): Promise<any> {
+  const [endpoint, ...params] = queryKey;
+  
+  switch (endpoint) {
+    case '/api/sound-clips':
+      return browserStorage.getSoundClips();
+    
+    case '/api/trigger-words':
+      return browserStorage.getTriggerWords();
+    
+    case '/api/settings':
+      return browserStorage.getSettings();
+    
+    case '/api/sound-clip':
+      if (params.length > 0) {
+        const id = parseInt(params[0]);
+        return browserStorage.getSoundClip(id);
+      }
+      throw new Error('Sound clip ID required');
+    
+    case '/api/trigger-word':
+      if (params.length > 0) {
+        const id = parseInt(params[0]);
+        return browserStorage.getTriggerWord(id);
+      }
+      throw new Error('Trigger word ID required');
+    
+    default:
+      throw new Error(`Unknown endpoint: ${endpoint}`);
   }
 }
 
+// Browser storage mutation function
 export async function apiRequest(
   url: string,
   options: {
@@ -14,56 +42,76 @@ export async function apiRequest(
     headers?: Record<string, string>;
     body?: BodyInit;
   } = {},
-): Promise<Response> {
-  const { method = "GET", headers = {}, body } = options;
+): Promise<any> {
+  const method = options.method || 'GET';
+  let body = undefined;
   
-  // Don't set Content-Type for FormData - let browser set it with boundary
-  const isFormData = body instanceof FormData;
-  const defaultHeaders = isFormData ? {} : { "Content-Type": "application/json" };
+  // Parse JSON body if it's a string
+  if (options.body && typeof options.body === 'string') {
+    try {
+      body = JSON.parse(options.body);
+    } catch {
+      body = options.body;
+    }
+  } else if (options.body) {
+    body = options.body;
+  }
   
-  const res = await fetch(url, {
-    method,
-    headers: {
-      ...defaultHeaders,
-      ...headers,
-    },
-    body,
-    credentials: "include",
-  });
-
-  await throwIfResNotOk(res);
-  return res;
+  // Handle different API endpoints
+  if (url === '/api/trigger-words' && method === 'POST') {
+    return browserStorage.createTriggerWord(body);
+  }
+  
+  if (url.startsWith('/api/trigger-words/') && method === 'PUT') {
+    const id = parseInt(url.split('/').pop()!);
+    return browserStorage.updateTriggerWord(id, body);
+  }
+  
+  if (url.startsWith('/api/trigger-words/') && method === 'DELETE') {
+    const id = parseInt(url.split('/').pop()!);
+    return browserStorage.deleteTriggerWord(id);
+  }
+  
+  if (url.startsWith('/api/sound-clips/') && method === 'DELETE') {
+    const id = parseInt(url.split('/').pop()!);
+    return browserStorage.deleteSoundClip(id);
+  }
+  
+  if (url === '/api/settings' && method === 'PUT') {
+    return browserStorage.updateSettings(body);
+  }
+  
+  if (url === '/api/profile/export') {
+    return browserStorage.exportProfile();
+  }
+  
+  if (url === '/api/profile/import' && method === 'POST') {
+    return browserStorage.importProfile(body);
+  }
+  
+  if (url === '/api/profile/clear' && method === 'POST') {
+    return browserStorage.clearAllData();
+  }
+  
+  throw new Error(`Unsupported API endpoint: ${method} ${url}`);
 }
 
-type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+// Helper function for file uploads
+export async function uploadSoundClip(file: File): Promise<any> {
+  return browserStorage.createSoundClip(file);
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
+      queryFn,
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
     },
     mutations: {
-      retry: false,
+      retry: 1,
     },
   },
 });

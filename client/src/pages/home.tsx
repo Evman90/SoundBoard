@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Settings, Moon, Info } from "lucide-react";
 import VoiceRecognition from "@/components/voice-recognition";
 import SoundLibrary from "@/components/sound-library";
-import { ServerProfileLoader } from "@/components/server-profile-loader";
-import { ProfileManager } from "@/components/profile-manager";
+// import { ServerProfileLoader } from "@/components/server-profile-loader"; // Removed in browser-only version
+import { ProfileManagerBrowser } from "@/components/profile-manager-browser";
 import { AudioControls } from "@/components/audio-controls";
 
 export default function Home() {
@@ -75,8 +75,7 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="space-y-6">
             <VoiceRecognition />
-            {/* Server Profile Loader */}
-            <ServerProfileLoader />
+            {/* Server Profile Loader removed in browser-only version */}
           </div>
           <div className="space-y-6">
             <SoundLibrary />
@@ -86,7 +85,7 @@ export default function Home() {
 
         {/* Profile Import/Export Options */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
-          <ProfileManager />
+          <ProfileManagerBrowser />
         </div>
       </div>
     </div>

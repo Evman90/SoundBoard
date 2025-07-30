@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAudioPlayer } from "./use-audio-player";
+import { browserStorage } from "@/lib/browser-storage";
+import { useAudioPlayerBrowser } from "./use-audio-player-browser";
 import type { TriggerWord, SoundClip, Settings } from "@shared/schema";
 
 interface SpeechRecognitionEvent {
@@ -40,7 +41,7 @@ export function useVoiceRecognition() {
   const streamRef = useRef<MediaStream | null>(null);
   const triggerCooldownRef = useRef<Set<string>>(new Set());
   const wordCountRef = useRef<number>(0);
-  const { playSound } = useAudioPlayer();
+  const { playSound } = useAudioPlayerBrowser();
 
   const { data: triggerWords = [] } = useQuery<TriggerWord[]>({
     queryKey: ["/api/trigger-words"],
@@ -181,29 +182,21 @@ export function useVoiceRecognition() {
           triggerCooldownRef.current.delete(cooldownKey);
         }, 2000); // 2 second cooldown
         
-        // Get the next sound clip for this trigger (handles cycling through multiple clips)
-        fetch(`/api/trigger-words/${trigger.id}/next-sound-clip`)
-          .then(response => response.json())
-          .then(data => {
-            if (data.soundClipId) {
-              const soundClip = soundClips.find(clip => clip.id === data.soundClipId);
-              if (soundClip) {
-                console.log("🎯 Trigger matched:", phrase, "-> Playing cycling sound:", soundClip.name);
-                playSound(soundClip.url, soundClip.id, 0.75);
-              }
-            }
-          })
-          .catch(error => {
-            console.error("Error getting next sound clip:", error);
-            // Fallback: use first sound clip from soundClipIds array if API fails
-            if (trigger.soundClipIds && trigger.soundClipIds.length > 0) {
-              const soundClip = soundClips.find(clip => clip.id === trigger.soundClipIds[0]);
-              if (soundClip) {
-                console.log("🎯 Trigger matched:", phrase, "-> Playing fallback sound:", soundClip.name);
-                playSound(soundClip.url, soundClip.id, 0.75);
-              }
-            }
-          });
+        // Get the next sound clip for this trigger using browser storage
+        if (trigger.soundClipIds && trigger.soundClipIds.length > 0) {
+          const currentIndex = trigger.currentIndex || 0;
+          const nextIndex = (currentIndex + 1) % trigger.soundClipIds.length;
+          const soundClipId = trigger.soundClipIds[currentIndex];
+          const soundClip = soundClips.find(clip => clip.id === soundClipId);
+          
+          if (soundClip) {
+            console.log("🎯 Trigger matched:", phrase, "-> Playing sound:", soundClip.name);
+            playSound(soundClip.filename);
+            
+            // Update the trigger's current index for next time
+            browserStorage.updateTriggerWord(trigger.id, { currentIndex: nextIndex });
+          }
+        }
       }
     });
 
@@ -222,7 +215,7 @@ export function useVoiceRecognition() {
           // Play random default clip immediately
           const randomClip = defaultClips[Math.floor(Math.random() * defaultClips.length)];
           console.log("🔄 No trigger matched, playing random default clip:", randomClip.name);
-          playSound(randomClip.url, randomClip.id, 0.75);
+          playSound(randomClip.filename);
         }
       }
     }

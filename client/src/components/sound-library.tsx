@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Play, Pause, Edit, Trash2, Search, Mic, Square, RotateCcw, Zap, X, PlayCircle, StopCircle } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, uploadSoundClip } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { useAudioPlayerBrowser } from "@/hooks/use-audio-player-browser";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import type { SoundClip, TriggerWord } from "@shared/schema";
 
@@ -29,7 +29,7 @@ export default function SoundLibrary() {
   const previewCancelRef = useRef<boolean>(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { playSound, stopSound, currentlyPlaying, stopAllSounds } = useAudioPlayer();
+  const { isPlaying, playSound, stopSound } = useAudioPlayerBrowser();
   const { 
     isRecording, 
     recordingTime, 
@@ -49,26 +49,9 @@ export default function SoundLibrary() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      console.log("Sending form data to server...");
-      // Log form data contents
-      for (const [key, value] of formData.entries()) {
-        console.log(`FormData ${key}:`, value);
-      }
-      
-      // Use direct fetch for file uploads to preserve FormData
-      const response = await fetch("/api/sound-clips", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Upload failed:", response.status, error);
-        throw new Error(`Upload failed: ${response.status} ${error}`);
-      }
-      
-      return response.json();
+    mutationFn: async (file: File) => {
+      console.log("Uploading file to browser storage:", file.name);
+      return uploadSoundClip(file);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sound-clips"] });
@@ -111,12 +94,10 @@ export default function SoundLibrary() {
 
   const createTriggerMutation = useMutation({
     mutationFn: async (data: { phrase: string; soundClipIds: number[]; caseSensitive: boolean; enabled: boolean }) => {
-      const response = await apiRequest("/api/trigger-words", {
+      return apiRequest("/api/trigger-words", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/trigger-words"] });
@@ -164,12 +145,8 @@ export default function SoundLibrary() {
     if (!file) return;
 
     console.log("Uploading file:", file.name, file.size, file.type);
-
-    const formData = new FormData();
-    formData.append("audio", file);
-    formData.append("name", file.name.replace(/\.[^/.]+$/, ""));
     
-    // Get audio duration
+    uploadMutation.mutate(file);
     const audio = new Audio();
     audio.src = URL.createObjectURL(file);
     
