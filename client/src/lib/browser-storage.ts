@@ -114,8 +114,7 @@ class BrowserStorage implements IBrowserStorage {
   }
 
   async createSoundClip(file: File): Promise<SoundClip> {
-    const audioStore = await this.getStore(STORES.AUDIO_FILES, 'readwrite');
-    const clipStore = await this.getStore(STORES.SOUND_CLIPS, 'readwrite');
+    const db = await this.getDB();
     
     return new Promise(async (resolve, reject) => {
       try {
@@ -125,14 +124,18 @@ class BrowserStorage implements IBrowserStorage {
         // Generate unique filename
         const filename = `${Date.now()}_${file.name}`;
         
-        // Store audio file
+        // Create a single transaction for both stores
+        const transaction = db.transaction([STORES.AUDIO_FILES, STORES.SOUND_CLIPS], 'readwrite');
+        const audioStore = transaction.objectStore(STORES.AUDIO_FILES);
+        const clipStore = transaction.objectStore(STORES.SOUND_CLIPS);
+        
+        // Store audio file first
         const audioRequest = audioStore.put({
           filename,
           data: file,
           originalName: file.name
         });
         
-        audioRequest.onerror = () => reject(audioRequest.error);
         audioRequest.onsuccess = () => {
           // Create sound clip record
           const soundClip = {
@@ -146,7 +149,6 @@ class BrowserStorage implements IBrowserStorage {
           };
           
           const clipRequest = clipStore.add(soundClip);
-          clipRequest.onerror = () => reject(clipRequest.error);
           clipRequest.onsuccess = () => {
             const createdClip = { ...soundClip, id: clipRequest.result as number };
             resolve(createdClip);
@@ -154,7 +156,12 @@ class BrowserStorage implements IBrowserStorage {
             // Update default responses
             this.addToDefaultResponses(createdClip.id);
           };
+          clipRequest.onerror = () => reject(clipRequest.error);
         };
+        
+        audioRequest.onerror = () => reject(audioRequest.error);
+        transaction.onerror = () => reject(transaction.error);
+        
       } catch (error) {
         reject(error);
       }
