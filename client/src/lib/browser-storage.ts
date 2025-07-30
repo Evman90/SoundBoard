@@ -194,28 +194,43 @@ class BrowserStorage implements IBrowserStorage {
   }
 
   async deleteSoundClip(id: number): Promise<void> {
-    const soundClip = await this.getSoundClip(id);
-    if (!soundClip) return;
-
-    const audioStore = await this.getStore(STORES.AUDIO_FILES, 'readwrite');
-    const clipStore = await this.getStore(STORES.SOUND_CLIPS, 'readwrite');
+    const db = await this.getDB();
     
-    return new Promise((resolve, reject) => {
-      // Remove from audio files
-      const audioRequest = audioStore.delete(soundClip.filename);
-      audioRequest.onerror = () => reject(audioRequest.error);
-      audioRequest.onsuccess = () => {
-        // Remove sound clip record
-        const clipRequest = clipStore.delete(id);
-        clipRequest.onerror = () => reject(clipRequest.error);
-        clipRequest.onsuccess = () => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // First get the sound clip info
+        const soundClip = await this.getSoundClip(id);
+        if (!soundClip) {
           resolve();
-          
-          // Clean up references
-          this.removeFromDefaultResponses(id);
-          this.removeFromTriggerWords(id);
+          return;
+        }
+
+        // Create a single transaction for both stores
+        const transaction = db.transaction([STORES.AUDIO_FILES, STORES.SOUND_CLIPS], 'readwrite');
+        const audioStore = transaction.objectStore(STORES.AUDIO_FILES);
+        const clipStore = transaction.objectStore(STORES.SOUND_CLIPS);
+        
+        // Remove from audio files first
+        const audioRequest = audioStore.delete(soundClip.filename);
+        audioRequest.onsuccess = () => {
+          // Remove sound clip record
+          const clipRequest = clipStore.delete(id);
+          clipRequest.onsuccess = () => {
+            resolve();
+            
+            // Clean up references (these use separate transactions which is ok)
+            this.removeFromDefaultResponses(id);
+            this.removeFromTriggerWords(id);
+          };
+          clipRequest.onerror = () => reject(clipRequest.error);
         };
-      };
+        
+        audioRequest.onerror = () => reject(audioRequest.error);
+        transaction.onerror = () => reject(transaction.error);
+        
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -284,15 +299,31 @@ class BrowserStorage implements IBrowserStorage {
   }
 
   async updateTriggerWord(id: number, triggerWord: Partial<Omit<TriggerWord, 'id'>>): Promise<TriggerWord | undefined> {
-    const store = await this.getStore(STORES.TRIGGER_WORDS, 'readwrite');
-    const existing = await this.getTriggerWord(id);
-    if (!existing) return undefined;
-
-    const updated = { ...existing, ...triggerWord };
+    const db = await this.getDB();
+    
     return new Promise((resolve, reject) => {
-      const request = store.put(updated);
-      request.onsuccess = () => resolve(updated);
-      request.onerror = () => reject(request.error);
+      const transaction = db.transaction([STORES.TRIGGER_WORDS], 'readwrite');
+      const store = transaction.objectStore(STORES.TRIGGER_WORDS);
+      
+      // First get existing trigger word
+      const getRequest = store.get(id);
+      getRequest.onsuccess = () => {
+        const existing = getRequest.result;
+        if (!existing) {
+          resolve(undefined);
+          return;
+        }
+        
+        const updated = { ...existing, ...triggerWord };
+        
+        // Now update with the same transaction
+        const putRequest = store.put(updated);
+        putRequest.onsuccess = () => resolve(updated);
+        putRequest.onerror = () => reject(putRequest.error);
+      };
+      
+      getRequest.onerror = () => reject(getRequest.error);
+      transaction.onerror = () => reject(transaction.error);
     });
   }
 
