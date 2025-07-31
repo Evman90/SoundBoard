@@ -435,7 +435,8 @@ class BrowserStorage implements IBrowserStorage {
         const audioBlob = await this.getAudioBlob(clip.filename);
         if (audioBlob) {
           const arrayBuffer = await audioBlob.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
           profileSoundClips.push({
             name: clip.name,
             filename: clip.filename,

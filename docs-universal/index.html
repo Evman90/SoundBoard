@@ -8,7 +8,12 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    <!-- Console logging for debugging -->
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('Script error:', e.error, e.filename, e.lineno);
+      });
+      console.log('HTML loaded, checking for React app...');
+    </script>
   </body>
 </html>

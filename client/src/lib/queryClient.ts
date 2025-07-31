@@ -1,9 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { browserStorage } from "@/lib/browser-storage";
 
-// Browser storage query function
-async function queryFn({ queryKey }: { queryKey: string[] }): Promise<any> {
-  const [endpoint, ...params] = queryKey;
+// Browser storage query function  
+async function queryFn(context: { queryKey: readonly unknown[] }): Promise<any> {
+  const { queryKey } = context;
+  const [endpoint, ...params] = queryKey as string[];
   
   switch (endpoint) {
     case '/api/sound-clips':
