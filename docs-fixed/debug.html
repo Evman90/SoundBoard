@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug CallSound Pro</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: white; }
+      .test { margin: 10px 0; padding: 10px; border: 1px solid #333; border-radius: 4px; }
+      .success { background: #0a4a0a; border-color: #0a8a0a; }
+      .error { background: #4a0a0a; border-color: #8a0a0a; }
+      .loading { background: #4a4a0a; border-color: #8a8a0a; }
+    </style>
+  </head>
+  <body>
+    <h1>CallSound Pro - Deployment Debug</h1>
+    
+    <div id="tests">
+      <div class="test loading" id="basic-js">
+        <strong>JavaScript Loading:</strong> Testing...
+      </div>
+      
+      <div class="test loading" id="indexeddb">
+        <strong>IndexedDB Support:</strong> Testing...
+      </div>
+      
+      <div class="test loading" id="speech-api">
+        <strong>Speech Recognition:</strong> Testing...
+      </div>
+      
+      <div class="test loading" id="react-load">
+        <strong>React App Loading:</strong> Testing...
+      </div>
+      
+      <div class="test loading" id="assets">
+        <strong>Asset Loading:</strong> Testing...
+      </div>
+    </div>
+    
+    <div id="root"></div>
+    
+    <script>
+      console.log('=== CallSound Pro Debug Test ===');
+      
+      // Test 1: Basic JavaScript
+      try {
+        document.getElementById('basic-js').className = 'test success';
+        document.getElementById('basic-js').innerHTML = '<strong>JavaScript Loading:</strong> ✅ Working';
+        console.log('✅ JavaScript working');
+      } catch (e) {
+        document.getElementById('basic-js').className = 'test error';
+        document.getElementById('basic-js').innerHTML = '<strong>JavaScript Loading:</strong> ❌ Failed - ' + e.message;
+        console.error('❌ JavaScript failed:', e);
+      }
+      
+      // Test 2: IndexedDB
+      try {
+        if (typeof indexedDB !== 'undefined') {
+          document.getElementById('indexeddb').className = 'test success';
+          document.getElementById('indexeddb').innerHTML = '<strong>IndexedDB Support:</strong> ✅ Available';
+          console.log('✅ IndexedDB available');
+        } else {
+          document.getElementById('indexeddb').className = 'test error';
+          document.getElementById('indexeddb').innerHTML = '<strong>IndexedDB Support:</strong> ❌ Not available';
+          console.log('❌ IndexedDB not available');
+        }
+      } catch (e) {
+        document.getElementById('indexeddb').className = 'test error';
+        document.getElementById('indexeddb').innerHTML = '<strong>IndexedDB Support:</strong> ❌ Error - ' + e.message;
+        console.error('❌ IndexedDB error:', e);
+      }
+      
+      // Test 3: Speech Recognition
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          document.getElementById('speech-api').className = 'test success';
+          document.getElementById('speech-api').innerHTML = '<strong>Speech Recognition:</strong> ✅ Available';
+          console.log('✅ Speech Recognition available');
+        } else {
+          document.getElementById('speech-api').className = 'test error';
+          document.getElementById('speech-api').innerHTML = '<strong>Speech Recognition:</strong> ❌ Not available';
+          console.log('❌ Speech Recognition not available');
+        }
+      } catch (e) {
+        document.getElementById('speech-api').className = 'test error';
+        document.getElementById('speech-api').innerHTML = '<strong>Speech Recognition:</strong> ❌ Error - ' + e.message;
+        console.error('❌ Speech Recognition error:', e);
+      }
+      
+      // Test 4: Asset Loading
+      function testAssets() {
+        const cssLoaded = document.querySelector('link[href*="index-CfjJb_cZ.css"]');
+        const jsLoaded = document.querySelector('script[src*="index-D_ycIwNe.js"]');
+        
+        if (cssLoaded && jsLoaded) {
+          document.getElementById('assets').className = 'test success';
+          document.getElementById('assets').innerHTML = '<strong>Asset Loading:</strong> ✅ CSS and JS files found';
+          console.log('✅ Assets loaded');
+        } else {
+          document.getElementById('assets').className = 'test error';
+          document.getElementById('assets').innerHTML = '<strong>Asset Loading:</strong> ❌ Missing assets - CSS: ' + !!cssLoaded + ', JS: ' + !!jsLoaded;
+          console.log('❌ Assets missing - CSS:', !!cssLoaded, 'JS:', !!jsLoaded);
+        }
+      }
+      
+      // Test 5: React App
+      function testReactApp() {
+        setTimeout(() => {
+          const root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            document.getElementById('react-load').className = 'test success';
+            document.getElementById('react-load').innerHTML = '<strong>React App Loading:</strong> ✅ App rendered';
+            console.log('✅ React app loaded');
+          } else {
+            document.getElementById('react-load').className = 'test error';
+            document.getElementById('react-load').innerHTML = '<strong>React App Loading:</strong> ❌ App not rendered';
+            console.log('❌ React app not loaded');
+          }
+        }, 3000);
+      }
+      
+      // Run tests
+      testAssets();
+      testReactApp();
+      
+      // Error handler
+      window.addEventListener('error', function(e) {
+        console.error('Global error:', e.error, e.filename, e.lineno);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'test error';
+        errorDiv.innerHTML = '<strong>Runtime Error:</strong> ' + e.error + ' at ' + e.filename + ':' + e.lineno;
+        document.getElementById('tests').appendChild(errorDiv);
+      });
+    </script>
+    
+    <!-- Load the actual app -->
+    <script type="module" crossorigin src="./assets/index-D_ycIwNe.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CfjJb_cZ.css">
+  </body>
+</html>
